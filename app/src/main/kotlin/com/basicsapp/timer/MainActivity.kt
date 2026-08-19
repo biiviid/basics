@@ -1,0 +1,464 @@
+package com.basicsapp.timer
+
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.basicsapp.timer.ui.screens.*
+import com.basicsapp.timer.ui.theme.BasicsColors
+import com.basicsapp.timer.ui.theme.AppFont
+import com.basicsapp.timer.utils.FileExporter
+import com.basicsapp.timer.utils.PuzzleType
+import com.basicsapp.timer.viewmodel.TimerViewModel
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            BasicsMainScreen()
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun BasicsMainScreen() {
+    val viewModel: TimerViewModel = hiltViewModel()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var selectedTab by remember { mutableStateOf(0) }
+    var showSessionMenu by remember { mutableStateOf(false) }
+    var showNewSessionDialog by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+    var longPressedSession by remember { mutableStateOf<com.basicsapp.timer.data.models.Session?>(null) }
+    var showDeleteSessionDialog by remember { mutableStateOf(false) }
+
+    val sessions by viewModel.sessions.collectAsState()
+    val currentSessionId by viewModel.currentSessionId.collectAsState()
+    val puzzleType by viewModel.puzzleType.collectAsState()
+    val inspectionEnabled by viewModel.inspectionEnabled.collectAsState()
+    val enabledAverages by viewModel.enabledAverages.collectAsState()
+    val currentSession = sessions.find { it.id == currentSessionId }
+
+    val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                val json = inputStream?.bufferedReader()?.use { r -> r.readText() }
+                if (json != null) {
+                    val imported = com.basicsapp.timer.utils.FileExporter.importSession(json)
+                    if (imported != null) {
+                        viewModel.importSession(imported)
+                        Toast.makeText(context, "imported successfully", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "invalid file format", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "import failed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BasicsColors.Background)
+    ) {
+        // top bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(BasicsColors.Surface)
+                .border(1.dp, BasicsColors.Border)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "basics.",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = AppFont.Orbitron,
+                color = BasicsColors.Primary
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box {
+                    Text(
+                        text = "${currentSession?.name ?: "no session"} · ${puzzleType.displayName.lowercase()}",
+                        fontSize = 14.sp,
+                        fontFamily = AppFont.Orbitron,
+                        color = BasicsColors.Secondary,
+                        modifier = Modifier.clickable { showSessionMenu = true }
+                    )
+
+                    DropdownMenu(
+                        expanded = showSessionMenu,
+                        onDismissRequest = { showSessionMenu = false },
+                        modifier = Modifier.background(BasicsColors.SurfaceContainer)
+                    ) {
+                        sessions.forEach { session ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = {
+                                            viewModel.selectSession(session.id)
+                                            showSessionMenu = false
+                                        },
+                                        onLongClick = {
+                                            longPressedSession = session
+                                            showSessionMenu = false
+                                        }
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
+                                Text(
+                                    text = "${session.name} (${PuzzleType.fromString(session.puzzleType).displayName.lowercase()})",
+                                    fontFamily = AppFont.Orbitron,
+                                    fontSize = 14.sp,
+                                    color = if (session.id == currentSessionId) BasicsColors.Primary else BasicsColors.Secondary,
+                                    fontWeight = if (session.id == currentSessionId) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = BasicsColors.Border)
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showSessionMenu = false
+                                    showNewSessionDialog = true
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Text(
+                                text = "+ new session",
+                                fontFamily = AppFont.Orbitron,
+                                fontSize = 14.sp,
+                                color = BasicsColors.Primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showSessionMenu = false
+                                    // open file picker for import
+                                    importLauncher.launch(arrayOf("application/json"))
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Text(
+                                text = "import from file",
+                                fontFamily = AppFont.Orbitron,
+                                fontSize = 14.sp,
+                                color = BasicsColors.Secondary
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = "\u2699",
+                    fontSize = 18.sp,
+                    color = BasicsColors.Secondary,
+                    modifier = Modifier.clickable { showSettings = true }
+                )
+            }
+        }
+
+        // tab row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(BasicsColors.Surface)
+                .border(1.dp, BasicsColors.Border)
+        ) {
+            listOf("timer", "history", "stats", "charts").forEachIndexed { index, title ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedTab = index }
+                        .background(if (selectedTab == index) BasicsColors.Background else BasicsColors.Surface)
+                        .border(1.dp, BasicsColors.Border)
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = AppFont.Orbitron,
+                        color = if (selectedTab == index) BasicsColors.Primary else BasicsColors.Tertiary,
+                        letterSpacing = 0.1.sp
+                    )
+                }
+            }
+        }
+
+        when (selectedTab) {
+            0 -> TimerScreen(viewModel = viewModel)
+            1 -> HistoryScreen(viewModel = viewModel)
+            2 -> StatsScreen(viewModel = viewModel)
+            3 -> ChartsScreen(viewModel = viewModel)
+        }
+    }
+
+    // long-press session action sheet
+    longPressedSession?.let { session ->
+        AlertDialog(
+            onDismissRequest = { longPressedSession = null },
+            containerColor = BasicsColors.SurfaceContainer,
+            titleContentColor = BasicsColors.Primary,
+            textContentColor = BasicsColors.Secondary,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp),
+            title = {
+                Text(session.name, fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    PuzzleType.fromString(session.puzzleType).displayName.lowercase(),
+                    fontFamily = AppFont.Orbitron,
+                    fontSize = 12.sp,
+                    color = BasicsColors.Tertiary
+                )
+            },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = {
+                        scope.launch {
+                            val sessionData = viewModel.getSessionForExport(session.id)
+                            val solves = viewModel.getSolvesForExport(session.id)
+                            if (sessionData != null) {
+                                val path = FileExporter.exportSession(context, sessionData, solves)
+                                Toast.makeText(context, if (path != null) "exported to $path" else "export failed", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        longPressedSession = null
+                    }) {
+                        Text("export", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontWeight = FontWeight.Bold)
+                    }
+
+                    TextButton(onClick = {
+                        showDeleteSessionDialog = true
+                    }) {
+                        Text("delete", fontFamily = AppFont.Orbitron, color = BasicsColors.Error, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { longPressedSession = null }) {
+                    Text("cancel", fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary)
+                }
+            }
+        )
+    }
+
+    // delete confirmation
+    if (showDeleteSessionDialog && longPressedSession != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteSessionDialog = false },
+            containerColor = BasicsColors.SurfaceContainer,
+            titleContentColor = BasicsColors.Primary,
+            textContentColor = BasicsColors.Secondary,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp),
+            title = { Text("delete \"${longPressedSession!!.name}\"?", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold) },
+            text = { Text("all solves will be permanently deleted.", fontFamily = AppFont.Orbitron) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteSession(longPressedSession!!.id)
+                    showDeleteSessionDialog = false
+                    longPressedSession = null
+                }) { Text("delete", fontFamily = AppFont.Orbitron, color = BasicsColors.Error, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteSessionDialog = false }) {
+                    Text("cancel", fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary)
+                }
+            }
+        )
+    }
+
+    // settings popup - rectangular style
+    if (showSettings) {
+        AlertDialog(
+            onDismissRequest = { showSettings = false },
+            containerColor = BasicsColors.SurfaceContainer,
+            titleContentColor = BasicsColors.Primary,
+            textContentColor = BasicsColors.Secondary,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp),
+            title = {
+                Text("settings", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 0.1.sp)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // extra averages toggles
+                    listOf(50, 100, 200, 500).forEach { size ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("ao$size", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 44.dp, height = 24.dp)
+                                    .background(if (size in enabledAverages) BasicsColors.Primary else BasicsColors.SurfaceHighest)
+                                    .border(1.dp, BasicsColors.Border)
+                                    .clickable { viewModel.toggleAverage(size) },
+                                contentAlignment = if (size in enabledAverages) Alignment.CenterEnd else Alignment.CenterStart
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 18.dp, height = 18.dp)
+                                        .background(if (size in enabledAverages) BasicsColors.Background else BasicsColors.Tertiary)
+                                        .padding(2.dp)
+                                )
+                            }
+                        }
+                        if (size != 500) HorizontalDivider(color = BasicsColors.Border)
+                    }
+
+                    HorizontalDivider(color = BasicsColors.Border)
+
+                    // inspection toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("wca inspection", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
+                            Text("15s countdown, +2 if over", fontFamily = AppFont.Orbitron, fontSize = 11.sp, color = BasicsColors.Tertiary)
+                        }
+                        // rectangular toggle
+                        Box(
+                            modifier = Modifier
+                                .size(width = 44.dp, height = 24.dp)
+                                .background(if (inspectionEnabled) BasicsColors.Primary else BasicsColors.SurfaceHighest)
+                                .border(1.dp, BasicsColors.Border)
+                                .clickable { viewModel.toggleInspection() },
+                            contentAlignment = if (inspectionEnabled) Alignment.CenterEnd else Alignment.CenterStart
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 18.dp, height = 18.dp)
+                                    .background(if (inspectionEnabled) BasicsColors.Background else BasicsColors.Tertiary)
+                                    .padding(2.dp)
+                            )
+                        }
+                    }
+
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettings = false }) {
+                    Text("close", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // new session dialog
+    if (showNewSessionDialog) {
+        var sessionName by remember { mutableStateOf("") }
+        var selectedPuzzle by remember { mutableStateOf(puzzleType) }
+        AlertDialog(
+            onDismissRequest = { showNewSessionDialog = false },
+            containerColor = BasicsColors.SurfaceContainer,
+            titleContentColor = BasicsColors.Primary,
+            textContentColor = BasicsColors.Secondary,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp),
+            title = { Text("new session", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = sessionName,
+                        onValueChange = { sessionName = it.take(50) },
+                        label = { Text("session name", fontFamily = AppFont.Orbitron) },
+                        singleLine = true,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = BasicsColors.Primary,
+                            unfocusedTextColor = BasicsColors.Secondary,
+                            focusedBorderColor = BasicsColors.Primary,
+                            unfocusedBorderColor = BasicsColors.Border,
+                            focusedLabelColor = BasicsColors.Primary,
+                            unfocusedLabelColor = BasicsColors.Tertiary,
+                            cursorColor = BasicsColors.Primary
+                        )
+                    )
+
+                    Text("puzzle type", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = BasicsColors.Tertiary, letterSpacing = 0.1.sp)
+
+                    val rows = PuzzleType.entries.chunked(3)
+                    rows.forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { puzzle ->
+                                Box(
+                                    modifier = Modifier
+                                        .border(1.dp, if (selectedPuzzle == puzzle) BasicsColors.Primary else BasicsColors.Border)
+                                        .background(if (selectedPuzzle == puzzle) BasicsColors.SurfaceHighest else BasicsColors.Surface)
+                                        .clickable { selectedPuzzle = puzzle }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = puzzle.displayName.lowercase(),
+                                        fontFamily = AppFont.Orbitron,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (selectedPuzzle == puzzle) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selectedPuzzle == puzzle) BasicsColors.Primary else BasicsColors.Tertiary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (sessionName.isNotBlank()) {
+                        viewModel.createSession(sessionName.trim().lowercase(), selectedPuzzle)
+                        showNewSessionDialog = false
+                    }
+                }) { Text("create", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewSessionDialog = false }) {
+                    Text("cancel", fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary)
+                }
+            }
+        )
+    }
+}

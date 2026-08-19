@@ -1,0 +1,25 @@
+*.iml
+.gradle/
+.kotlin/
+.idea/
+local.properties
+build/
+captures
+.externalNativeBuild
+.cxx
+.DS_Store
+
+# secrets & signing — never upload
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+keystore.properties
+
+# dev scratch / personal reference
+reference/
+diagnose*.js
+verify_cube.js
+.clinerules
