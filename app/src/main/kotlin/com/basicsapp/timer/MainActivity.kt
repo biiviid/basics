@@ -89,6 +89,7 @@ fun BasicsMainScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(BasicsColors.Background)
+            .windowInsetsPadding(WindowInsets.systemBars)
     ) {
         // top bar
         Row(

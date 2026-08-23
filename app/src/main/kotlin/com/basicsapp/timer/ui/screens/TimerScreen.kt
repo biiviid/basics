@@ -33,10 +33,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.basicsapp.timer.ui.components.AdaptiveTimerText
 import com.basicsapp.timer.ui.components.CubeNet
 import com.basicsapp.timer.ui.theme.AppFont
 import com.basicsapp.timer.ui.theme.BasicsColors
@@ -227,18 +230,14 @@ fun TimerScreen(viewModel: TimerViewModel) {
                         val isPlus2 = lastSolvePenalty == 2
                         val isYellow = lastSolveUsedPrevScramble
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
+                            AdaptiveTimerText(
                                 text = if (isDnf) "dnf" else TimeFormatter.formatTime(lastSolveTime!!),
-                                fontSize = 72.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = AppFont.Orbitron,
                                 color = when {
                                     isDnf -> BasicsColors.Error
                                     isPlus2 -> BasicsColors.Error
                                     isYellow -> Color(0xFFCCCC00)
                                     else -> BasicsColors.Primary
-                                },
-                                letterSpacing = (-2).sp
+                                }
                             )
                             if (isPlus2) Text(" +2", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Error, modifier = Modifier.padding(start = 4.dp))
                             if (isDnf) Text(" dnf", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Error, modifier = Modifier.padding(start = 4.dp))
@@ -268,11 +267,11 @@ fun TimerScreen(viewModel: TimerViewModel) {
                     }
 
                     if (timerState == TimerState.RUNNING) {
-                        Text(TimeFormatter.formatTime(elapsed), fontSize = 72.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, letterSpacing = (-2).sp)
+                        AdaptiveTimerText(text = TimeFormatter.formatTime(elapsed), color = BasicsColors.Primary)
                     }
 
                     if (!isInspecting && timerState == TimerState.IDLE && lastSolveTime == null) {
-                        Text("0:00.000", fontSize = 72.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, letterSpacing = (-2).sp)
+                        AdaptiveTimerText(text = "0:00.000", color = BasicsColors.Primary)
                     }
 
                     if (timerState == TimerState.ARMED && !isInspecting) {
@@ -532,24 +531,30 @@ fun ArmedText(
     armedColor: Color = BasicsColors.Armed,
     letterSpacing: androidx.compose.ui.unit.TextUnit = 0.sp
 ) {
-    Text(
-        text = text,
-        fontSize = fontSize,
-        fontWeight = FontWeight.Bold,
-        fontFamily = AppFont.Orbitron,
-        color = normalColor,
-        letterSpacing = letterSpacing,
-        modifier = Modifier
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-            .drawWithContent {
-                drawContent()
-                val fillHeight = size.height * progress
-                drawRect(
-                    color = armedColor,
-                    topLeft = Offset(0f, size.height - fillHeight),
-                    size = androidx.compose.ui.geometry.Size(size.width, fillHeight),
-                    blendMode = BlendMode.SrcIn
-                )
-            }
-    )
+    val baseDensity = LocalDensity.current
+    val cappedDensity = Density(baseDensity.density, baseDensity.fontScale.coerceAtMost(1.2f))
+    CompositionLocalProvider(LocalDensity provides cappedDensity) {
+        Text(
+            text = text,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Bold,
+            fontFamily = AppFont.Orbitron,
+            color = normalColor,
+            letterSpacing = letterSpacing,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    val fillHeight = size.height * progress
+                    drawRect(
+                        color = armedColor,
+                        topLeft = Offset(0f, size.height - fillHeight),
+                        size = androidx.compose.ui.geometry.Size(size.width, fillHeight),
+                        blendMode = BlendMode.SrcIn
+                    )
+                }
+        )
+    }
 }
