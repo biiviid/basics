@@ -64,9 +64,16 @@ object KociembaSolver {
     private val path = IntArray(MAX_PHASE1 + MAX_PHASE2 + 1)
     private var pathLen = 0
 
-    /** Returns a WCA scramble string that, applied to a solved cube, reproduces cc. */
-    fun scrambleFor(cc: CubieCube): String? {
-        initTables()
+    /** True once the pruning tables have been built for this process. */
+    fun isInitialized(): Boolean = initialized
+
+    /**
+     * Returns a WCA scramble string that, applied to a solved cube, reproduces cc.
+     * If the tables are not built yet, [onInitProgress] is called with 0f..1f as each
+     * build phase completes (on the caller's thread).
+     */
+    fun scrambleFor(cc: CubieCube, onInitProgress: ((Float) -> Unit)? = null): String? {
+        initTables(onInitProgress)
         val solution = synchronized(this) { solvePath(cc) } ?: return null
         if (solution.isEmpty()) return ""
         return solution.asReversed().joinToString(" ") { MOVE_NAMES[INV_MOVE[it]] }
@@ -179,10 +186,15 @@ object KociembaSolver {
     }
     // ---- table building ----
 
-    private fun initTables() {
+    private fun initTables(onProgress: ((Float) -> Unit)? = null) {
         if (initialized) return
         synchronized(this) {
             if (initialized) return
+
+            // 1 (slice maps) + 6 (move tables) + 4 (prune tables) build phases
+            val phases = 11f
+            var done = 0f
+            fun tick() { done++; onProgress?.invoke((done / phases).coerceIn(0f, 1f)) }
 
             sliceMaskToIndex = IntArray(4096) { -1 }
             val masks = ArrayList<Int>(N_SLICE)
@@ -193,28 +205,59 @@ object KociembaSolver {
             }
             sliceIndexToMask = masks.toIntArray()
             sliceGoal = sliceMaskToIndex[SLICE_MASK]
+            tick()
 
             twistMove = IntArray(N_TWIST * 18)
-            flipMove = IntArray(N_FLIP * 18)
-            sliceMove = IntArray(N_SLICE * 18)
-            cornerMove = IntArray(N_CORN * 18)
-            edgeMove = IntArray(N_EDGE * 18)
-            udMove = IntArray(N_UD * 18)
             for (m in 0 until 18) {
                 val mc = CubieCube.moveCube[m]
                 for (t in 0 until N_TWIST) twistMove[t * 18 + m] = twistOf(CubieCube.cubeMult(ccFromTwist(t), mc))
+            }
+            tick()
+
+            flipMove = IntArray(N_FLIP * 18)
+            for (m in 0 until 18) {
+                val mc = CubieCube.moveCube[m]
                 for (f in 0 until N_FLIP) flipMove[f * 18 + m] = flipOf(CubieCube.cubeMult(ccFromFlip(f), mc))
+            }
+            tick()
+
+            sliceMove = IntArray(N_SLICE * 18)
+            for (m in 0 until 18) {
+                val mc = CubieCube.moveCube[m]
                 for (s in 0 until N_SLICE) sliceMove[s * 18 + m] = sliceIndexOf(CubieCube.cubeMult(ccFromSlice(s), mc))
+            }
+            tick()
+
+            cornerMove = IntArray(N_CORN * 18)
+            for (m in 0 until 18) {
+                val mc = CubieCube.moveCube[m]
                 for (c in 0 until N_CORN) cornerMove[c * 18 + m] = cornerPermOf(CubieCube.cubeMult(ccFromCornerPerm(c), mc))
+            }
+            tick()
+
+            edgeMove = IntArray(N_EDGE * 18)
+            for (m in 0 until 18) {
+                val mc = CubieCube.moveCube[m]
                 for (e in 0 until N_EDGE) edgeMove[e * 18 + m] = edgePermOf(CubieCube.cubeMult(ccFromEdgePerm(e), mc))
+            }
+            tick()
+
+            udMove = IntArray(N_UD * 18)
+            for (m in 0 until 18) {
+                val mc = CubieCube.moveCube[m]
                 for (u in 0 until N_UD) udMove[u * 18 + m] = sliceOrderOf(CubieCube.cubeMult(ccFromSliceOrder(u), mc))
             }
+            tick()
 
             val allMoves = IntArray(18) { it }
             prunTwistSlice = buildPrune(N_TWIST, N_SLICE, twistMove, sliceMove, allMoves, 0, sliceGoal)
+            tick()
             prunFlipSlice = buildPrune(N_FLIP, N_SLICE, flipMove, sliceMove, allMoves, 0, sliceGoal)
+            tick()
             prunCornerUd = buildPrune(N_CORN, N_UD, cornerMove, udMove, PHASE2_MOVES, 0, 0)
+            tick()
             prunEdgeUd = buildPrune(N_EDGE, N_UD, edgeMove, udMove, PHASE2_MOVES, 0, 0)
+            tick()
 
             initialized = true
         }

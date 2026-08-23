@@ -62,8 +62,33 @@ object FileExporter {
      * timers. Manual cube-state solves are exported as a real equivalent WCA scramble
      * produced by KociembaSolver, so the manual state survives the move to another timer.
      */
-    fun exportSessionCsTimer(context: Context, session: Session, solves: List<Solve>): String? {
+    fun exportSessionCsTimer(
+        context: Context,
+        session: Session,
+        solves: List<Solve>,
+        onProgress: ((Float) -> Unit)? = null
+    ): String? {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+
+        // progress units: the solver table build (first use only) plus one per manual solve
+        val manualCount = solves.count { it.scramble.startsWith("manual:") }
+        val initNeeded = manualCount > 0 && !KociembaSolver.isInitialized()
+        val totalUnits = (manualCount + if (initNeeded) 1 else 0).toFloat().coerceAtLeast(1f)
+        var unitsDone = 0f
+        val unit = 1f / totalUnits
+
+        fun scrambleFor(raw: String): String {
+            if (!raw.startsWith("manual:")) return raw
+            val colors = CubieCube.colorsFromFaceString(raw.removePrefix("manual:"))
+            val cc = CubieCube.buildCubieFromColors(colors) ?: return ""
+            val scramble = KociembaSolver.scrambleFor(cc) { initFrac ->
+                onProgress?.invoke(((unitsDone + initFrac * unit) / totalUnits).coerceIn(0f, 1f))
+            }
+            unitsDone += 1f
+            onProgress?.invoke((unitsDone / totalUnits).coerceIn(0f, 1f))
+            return scramble ?: ""
+        }
+
         val exportData = listOf(
             mapOf(
                 "session" to session.name,
@@ -72,7 +97,7 @@ object FileExporter {
                     mapOf(
                         "time" to String.format(Locale.US, "%.2f", solve.timeMs / 1000.0),
                         "penalty" to when (solve.penalty) { 2 -> "+2"; -1 -> "DNF"; else -> "0" },
-                        "scramble" to csTimerScramble(solve),
+                        "scramble" to scrambleFor(solve.scramble),
                         "comment" to "",
                         "date" to dateFormat.format(Date(solve.createdAt))
                     )
@@ -80,19 +105,11 @@ object FileExporter {
             )
         )
         val json = gson.toJson(exportData)
+        onProgress?.invoke(1f)
         return writeJsonToDownloads(
             context, json,
             "cstimer_${session.name.replace(" ", "_")}_${System.currentTimeMillis()}.json"
         )
-    }
-
-    private fun csTimerScramble(solve: Solve): String {
-        val raw = solve.scramble
-        if (raw.isBlank()) return ""
-        if (!raw.startsWith("manual:")) return raw
-        val colors = CubieCube.colorsFromFaceString(raw.removePrefix("manual:"))
-        val cc = CubieCube.buildCubieFromColors(colors) ?: return ""
-        return KociembaSolver.scrambleFor(cc) ?: ""
     }
 
     private fun csTimerPuzzleCode(puzzle: PuzzleType): String = when (puzzle) {

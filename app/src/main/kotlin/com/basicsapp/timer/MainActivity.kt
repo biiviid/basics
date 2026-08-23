@@ -13,10 +13,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +57,7 @@ fun BasicsMainScreen() {
     var showSettings by remember { mutableStateOf(false) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
     var longPressedSession by remember { mutableStateOf<com.basicsapp.timer.data.models.Session?>(null) }
+    var exportProgress by remember { mutableStateOf<Float?>(null) }
     var showDeleteSessionDialog by remember { mutableStateOf(false) }
 
     val sessions by viewModel.sessions.collectAsState()
@@ -242,6 +245,56 @@ fun BasicsMainScreen() {
         }
     }
 
+    // progress overlay while exporting a session to cstimer (solver table build + solving)
+    if (exportProgress != null) {
+        AlertDialog(
+            onDismissRequest = { },
+            containerColor = BasicsColors.SurfaceContainer,
+            shape = RoundedCornerShape(0.dp),
+            title = {
+                Text("exporting to cstimer", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "building cube solver / solving states",
+                        fontSize = 11.sp,
+                        fontFamily = AppFont.Orbitron,
+                        color = BasicsColors.Tertiary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .height(44.dp)
+                            .border(2.dp, BasicsColors.Primary)
+                            .background(BasicsColors.Surface),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(exportProgress!!)
+                                .background(Color.White)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "${(exportProgress!! * 100).toInt()}%",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = AppFont.Orbitron,
+                        color = BasicsColors.Primary
+                    )
+                }
+            },
+            confirmButton = {}
+        )
+    }
+
     // long-press session action sheet
     longPressedSession?.let { session ->
         AlertDialog(
@@ -282,7 +335,12 @@ fun BasicsMainScreen() {
                             val sessionData = viewModel.getSessionForExport(session.id)
                             val solves = viewModel.getSolvesForExport(session.id)
                             if (sessionData != null) {
-                                val path = FileExporter.exportSessionCsTimer(context, sessionData, solves)
+                                val hasManual = solves.any { it.scramble.startsWith("manual:") }
+                                if (hasManual) exportProgress = 0f
+                                val path = FileExporter.exportSessionCsTimer(context, sessionData, solves) { p ->
+                                    if (hasManual) exportProgress = p
+                                }
+                                exportProgress = null
                                 Toast.makeText(context, if (path != null) "exported to $path" else "export failed", Toast.LENGTH_LONG).show()
                             }
                         }
