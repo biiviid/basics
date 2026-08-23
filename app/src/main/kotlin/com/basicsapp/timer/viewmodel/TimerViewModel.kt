@@ -11,6 +11,7 @@ import com.basicsapp.timer.utils.PuzzleType
 import com.basicsapp.timer.utils.ScrambleGenerator
 import com.basicsapp.timer.utils.SessionStats
 import com.basicsapp.timer.utils.StatsCalculator
+import com.basicsapp.timer.ui.components.CubieCube
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
@@ -70,6 +71,13 @@ class TimerViewModel @Inject constructor(
     private val _inspectionHoldStart = MutableStateFlow(false)
     val inspectionHoldStart: StateFlow<Boolean> = _inspectionHoldStart.asStateFlow()
 
+    // input mode: generated scrambles, or a manually-entered cube state
+    private val _inputMode = MutableStateFlow(TimerInputMode.SCRAMBLE)
+    val inputMode: StateFlow<TimerInputMode> = _inputMode.asStateFlow()
+
+    private val _manualColors = MutableStateFlow(CubieCube.solvedColors())
+    val manualColors: StateFlow<IntArray> = _manualColors.asStateFlow()
+
     private val _inspectionTime = MutableStateFlow(15)
     val inspectionTime: StateFlow<Int> = _inspectionTime.asStateFlow()
 
@@ -111,6 +119,9 @@ class TimerViewModel @Inject constructor(
         _inspectionHoldStart.value = prefs.getBoolean("inspection_hold_start", false)
         _enabledAverages.value = prefs.getString("enabled_averages", "")
             ?.split(",")?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
+        _inputMode.value = runCatching {
+            TimerInputMode.valueOf(prefs.getString("input_mode", TimerInputMode.SCRAMBLE.name) ?: TimerInputMode.SCRAMBLE.name)
+        }.getOrDefault(TimerInputMode.SCRAMBLE)
 
         viewModelScope.launch {
             repository.getAllSessions().collect { sessionList ->
@@ -149,6 +160,9 @@ class TimerViewModel @Inject constructor(
         }
 
         generateNewScramble()
+        if (_inputMode.value == TimerInputMode.MANUAL) {
+            _scramble.value = manualScrambleString()
+        }
     }
 
     private suspend fun updateOverallPb() {
@@ -178,6 +192,41 @@ class TimerViewModel @Inject constructor(
         _holdTimeMs.value = ms.coerceIn(0, 1000)
         prefs.edit().putInt("hold_time_ms", _holdTimeMs.value).apply()
     }
+
+    // ---- manual cube-state input ----
+
+    fun setInputMode(mode: TimerInputMode) {
+        _inputMode.value = mode
+        prefs.edit().putString("input_mode", mode.name).apply()
+        if (mode == TimerInputMode.SCRAMBLE) {
+            generateNewScramble()
+        } else {
+            _scramble.value = manualScrambleString()
+            _lastSolveUsedPrevScramble.value = false
+        }
+    }
+
+    /** Bulk-apply a full manual state (from the picker). */
+    fun setManualColors(colors: IntArray) {
+        _manualColors.value = colors.copyOf()
+        _scramble.value = manualScrambleString()
+    }
+
+    fun setManualColor(faceletIdx: Int, colorIdx: Int) {
+        if (faceletIdx !in 0 until 54) return
+        val next = _manualColors.value.copyOf()
+        next[faceletIdx] = colorIdx.coerceIn(0, 5)
+        _manualColors.value = next
+        _scramble.value = manualScrambleString()
+    }
+
+    fun resetManualColors() {
+        _manualColors.value = CubieCube.solvedColors()
+        _scramble.value = manualScrambleString()
+    }
+
+    private fun manualScrambleString(): String =
+        "manual:" + CubieCube.faceStringFromColors(_manualColors.value)
 
     fun toggleAverage(size: Int) {
         _enabledAverages.value = if (size in _enabledAverages.value) {
@@ -223,7 +272,9 @@ class TimerViewModel @Inject constructor(
             _lastSolvePenalty.value = -1
             _inspectionPenalty.value = "none"
             _inspectionTime.value = 15
-            generateNewScramble()
+            if (_inputMode.value == TimerInputMode.SCRAMBLE) {
+                generateNewScramble()
+            }
         } else {
             startTimer()
         }
@@ -260,7 +311,9 @@ class TimerViewModel @Inject constructor(
     }
 
     fun refreshScramble() {
-        generateNewScramble()
+        if (_inputMode.value == TimerInputMode.SCRAMBLE) {
+            generateNewScramble()
+        }
     }
 
     fun setCustomScramble(scramble: String) {
@@ -377,7 +430,9 @@ class TimerViewModel @Inject constructor(
             _lastSolvePenalty.value = penalty
             _inspectionPenalty.value = "none"
             _inspectionTime.value = 15
-            generateNewScramble()
+            if (_inputMode.value == TimerInputMode.SCRAMBLE) {
+                generateNewScramble()
+            }
         }
     }
 
@@ -469,4 +524,8 @@ class TimerViewModel @Inject constructor(
 
 enum class TimerState {
     IDLE, ARMED, RUNNING, STOPPED
+}
+
+enum class TimerInputMode {
+    SCRAMBLE, MANUAL
 }

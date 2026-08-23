@@ -40,10 +40,13 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.basicsapp.timer.ui.components.AdaptiveTimerText
+import com.basicsapp.timer.ui.components.CubeInputDialog
 import com.basicsapp.timer.ui.components.CubeNet
+import com.basicsapp.timer.ui.components.CubeNetFromColors
 import com.basicsapp.timer.ui.theme.AppFont
 import com.basicsapp.timer.ui.theme.BasicsColors
 import com.basicsapp.timer.utils.TimeFormatter
+import com.basicsapp.timer.viewmodel.TimerInputMode
 import com.basicsapp.timer.viewmodel.TimerState
 import com.basicsapp.timer.viewmodel.TimerViewModel
 import kotlinx.coroutines.delay
@@ -71,12 +74,15 @@ fun TimerScreen(viewModel: TimerViewModel) {
     val lastSolveId by viewModel.lastSolveId.collectAsState()
     val holdTimeMs by viewModel.holdTimeMs.collectAsState()
     val inspectionHoldStart by viewModel.inspectionHoldStart.collectAsState()
+    val inputMode by viewModel.inputMode.collectAsState()
+    val manualColors by viewModel.manualColors.collectAsState()
     val scope = rememberCoroutineScope()
 
     var showCustomDialog by remember { mutableStateOf(false) }
     var customInput by remember { mutableStateOf("") }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showNetPopup by remember { mutableStateOf(false) }
+    var showCubeInput by remember { mutableStateOf(false) }
 
     val armProgress = remember { Animatable(0f) }
     LaunchedEffect(timerState, holdTimeMs) {
@@ -172,12 +178,36 @@ fun TimerScreen(viewModel: TimerViewModel) {
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(line1, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary, textAlign = TextAlign.Start, lineHeight = 20.sp)
-                    if (line2.isNotBlank()) {
-                        Text(line2, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary, textAlign = TextAlign.Start, lineHeight = 20.sp)
+                if (inputMode == TimerInputMode.MANUAL) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("manual cube state", fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary)
+                        Text("time whatever's in your hands", fontSize = 11.sp, fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary)
                     }
-                }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "\u25A6",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = AppFont.Orbitron,
+                            color = BasicsColors.Primary,
+                            modifier = Modifier.clickable { showCubeInput = true }
+                        )
+                        Text(
+                            text = "scramble",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = AppFont.Orbitron,
+                            color = BasicsColors.Secondary,
+                            modifier = Modifier.clickable { viewModel.setInputMode(TimerInputMode.SCRAMBLE) }
+                        )
+                    }
+                } else {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(line1, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary, textAlign = TextAlign.Start, lineHeight = 20.sp)
+                        if (line2.isNotBlank()) {
+                            Text(line2, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary, textAlign = TextAlign.Start, lineHeight = 20.sp)
+                        }
+                    }
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -237,7 +267,16 @@ fun TimerScreen(viewModel: TimerViewModel) {
                             color = BasicsColors.Primary,
                             modifier = Modifier.clickable { showCustomDialog = true }
                         )
+                        Text(
+                            text = "cube",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = AppFont.Orbitron,
+                            color = BasicsColors.Primary,
+                            modifier = Modifier.clickable { showCubeInput = true }
+                        )
                     }
+                }
                 }
             }
 
@@ -389,13 +428,22 @@ fun TimerScreen(viewModel: TimerViewModel) {
                         modifier = Modifier.clickable { showNetPopup = true },
                         contentAlignment = Alignment.BottomCenter
                     ) {
-                        CubeNet(
-                            scramble = scramble,
-                            puzzleType = puzzleType,
-                            modifier = Modifier
-                                .height(72.dp)
-                                .aspectRatio(12f / 9f)
-                        )
+                        if (inputMode == TimerInputMode.MANUAL) {
+                            CubeNetFromColors(
+                                colors = manualColors,
+                                modifier = Modifier
+                                    .height(72.dp)
+                                    .aspectRatio(12f / 9f)
+                            )
+                        } else {
+                            CubeNet(
+                                scramble = scramble,
+                                puzzleType = puzzleType,
+                                modifier = Modifier
+                                    .height(72.dp)
+                                    .aspectRatio(12f / 9f)
+                            )
+                        }
                     }
                 }
 
@@ -485,6 +533,18 @@ fun TimerScreen(viewModel: TimerViewModel) {
             )
         }
 
+        if (showCubeInput) {
+            CubeInputDialog(
+                initialColors = manualColors,
+                onDismiss = { showCubeInput = false },
+                onConfirm = { colors ->
+                    viewModel.setInputMode(TimerInputMode.MANUAL)
+                    viewModel.setManualColors(colors)
+                    showCubeInput = false
+                }
+            )
+        }
+
         if (showNetPopup && scramble.isNotBlank()) {
             AlertDialog(
                 onDismissRequest = { showNetPopup = false },
@@ -497,16 +557,25 @@ fun TimerScreen(viewModel: TimerViewModel) {
                 },
                 text = {
                     Column {
-                        CubeNet(
-                            scramble = scramble,
-                            puzzleType = puzzleType,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(12f / 9f)
-                        )
+                        if (inputMode == TimerInputMode.MANUAL) {
+                            CubeNetFromColors(
+                                colors = manualColors,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(12f / 9f)
+                            )
+                        } else {
+                            CubeNet(
+                                scramble = scramble,
+                                puzzleType = puzzleType,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(12f / 9f)
+                            )
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            scramble,
+                            if (inputMode == TimerInputMode.MANUAL) "[manual cube state]" else scramble,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = AppFont.Orbitron,

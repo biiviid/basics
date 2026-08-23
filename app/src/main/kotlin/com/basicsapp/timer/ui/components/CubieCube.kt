@@ -56,6 +56,9 @@ data class CubieCube(
             "D" to 15, "D2" to 16, "D'" to 17
         )
 
+        // color-index mapping: 0=U, 1=R, 2=F, 3=D, 4=L, 5=B (matches CubeNet PALETTE)
+        const val TS = "URFDLB"
+
         fun cornMult(a: CubieCube, b: CubieCube): IntArray {
             val prod = IntArray(8)
             for (corn in 0 until 8) {
@@ -107,13 +110,27 @@ data class CubieCube(
                     f[eFacelet[e][(n + ori) % 2]] = eFacelet[j][n]
                 }
             }
-            val ts = "URFDLB"
-            return f.map { ts[it / 9] }.joinToString("")
+            return f.map { TS[it / 9] }.joinToString("")
         }
 
         fun toColorIndices(cc: CubieCube): IntArray {
             val faceletStr = toFaceCube(cc)
-            return IntArray(54) { "URFDLB".indexOf(faceletStr[it]) }
+            return IntArray(54) { TS.indexOf(faceletStr[it]) }
+        }
+
+        // ---- manual cube-state helpers (single source of truth: color indices 0-5, U/R/F/D/L/B) ----
+        fun solvedColors(): IntArray = IntArray(54) { it / 9 }
+
+        fun faceStringFromColors(colors: IntArray): String =
+            buildString { for (c in colors) append(TS[c.coerceIn(0, 5)]) }
+
+        fun colorsFromFaceString(faceStr: String): IntArray {
+            val out = IntArray(54)
+            for (i in 0 until 54) {
+                val idx = TS.indexOf(faceStr.getOrNull(i) ?: 'U')
+                out[i] = if (idx >= 0) idx else 0
+            }
+            return out
         }
     }
 }

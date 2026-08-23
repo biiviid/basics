@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.basicsapp.timer.utils.PuzzleType
 
-private val PALETTE = intArrayOf(
+internal val PALETTE = intArrayOf(
     0xFFFFFFFF.toInt(), // 0: U white
     0xFFFF3333.toInt(), // 1: R red
     0xFF00CC00.toInt(), // 2: F green
@@ -26,7 +26,7 @@ private val PALETTE = intArrayOf(
 //    [L][F][R][B]
 //       [D]
 // Grid: 12 cols x 9 rows
-private fun faceletToNetPos(faceletIdx: Int): Pair<Int, Int>? {
+internal fun faceletToNetPos(faceletIdx: Int): Pair<Int, Int>? {
     if (faceletIdx < 0 || faceletIdx >= 54) return null
     val faceIdx = faceletIdx / 9
     val sticker = faceletIdx % 9
@@ -41,6 +41,23 @@ private fun faceletToNetPos(faceletIdx: Int): Pair<Int, Int>? {
         5 -> Pair(9 + col, 3 + row)     // B: middle far right
         else -> null
     }
+}
+
+/** Inverse of [faceletToNetPos]: grid cell (col, row) -> facelet index, or null for empty cells. */
+internal fun netPosToFacelet(col: Int, row: Int): Int? {
+    val face: Int
+    val stickerCol: Int
+    val stickerRow: Int
+    when {
+        row in 0..2 && col in 3..5 -> { face = 0; stickerCol = col - 3; stickerRow = row }
+        row in 3..5 && col in 6..8 -> { face = 1; stickerCol = col - 6; stickerRow = row - 3 }
+        row in 3..5 && col in 3..5 -> { face = 2; stickerCol = col - 3; stickerRow = row - 3 }
+        row in 6..8 && col in 3..5 -> { face = 3; stickerCol = col - 3; stickerRow = row - 6 }
+        row in 3..5 && col in 0..2 -> { face = 4; stickerCol = col; stickerRow = row - 3 }
+        row in 3..5 && col in 9..11 -> { face = 5; stickerCol = col - 9; stickerRow = row - 3 }
+        else -> return null
+    }
+    return face * 9 + stickerRow * 3 + stickerCol
 }
 
 @Composable
@@ -65,7 +82,12 @@ fun CubeNet333(scramble: String, modifier: Modifier = Modifier) {
         val cc = CubieCube.applyScramble(scramble)
         CubieCube.toColorIndices(cc)
     }
+    CubeNetFromColors(colors, modifier)
+}
 
+/** Renders a cube state from its color indices (0-5) — the exact structure CubieCube.toColorIndices produces. */
+@Composable
+fun CubeNetFromColors(colors: IntArray, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val gridCols = 12
         val gridRows = 9

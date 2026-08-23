@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.basicsapp.timer.ui.components.CubeNet
+import com.basicsapp.timer.ui.components.CubeNetFromColors
+import com.basicsapp.timer.ui.components.CubieCube
 import com.basicsapp.timer.ui.components.SolveCard
 import com.basicsapp.timer.ui.theme.AppFont
 import com.basicsapp.timer.ui.theme.BasicsColors
@@ -272,39 +274,59 @@ fun HistoryScreen(viewModel: TimerViewModel) {
                 text = {
                     Column(horizontalAlignment = Alignment.Start) {
                         if (solve.scramble.isNotBlank()) {
-                            val words = solve.scramble.split(" ").filter { it.isNotBlank() }
-                            val mid = (words.size + 1) / 2
-                            val l1 = words.take(mid).joinToString("  ") { it.replace("'", " '") }
-                            val l2 = words.drop(mid).joinToString("  ") { it.replace("'", " '") }
-                            Text(
-                                text = l1,
-                                fontFamily = AppFont.Orbitron,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = BasicsColors.Secondary,
-                                lineHeight = 16.sp
-                            )
-                            if (l2.isNotBlank()) {
+                            if (solve.scramble.startsWith("manual:")) {
                                 Text(
-                                    text = l2,
+                                    text = "[manual cube state]",
+                                    fontFamily = AppFont.Orbitron,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = BasicsColors.Secondary
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            } else {
+                                val words = solve.scramble.split(" ").filter { it.isNotBlank() }
+                                val mid = (words.size + 1) / 2
+                                val l1 = words.take(mid).joinToString("  ") { it.replace("'", " '") }
+                                val l2 = words.drop(mid).joinToString("  ") { it.replace("'", " '") }
+                                Text(
+                                    text = l1,
                                     fontFamily = AppFont.Orbitron,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = BasicsColors.Secondary,
                                     lineHeight = 16.sp
                                 )
+                                if (l2.isNotBlank()) {
+                                    Text(
+                                        text = l2,
+                                        fontFamily = AppFont.Orbitron,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = BasicsColors.Secondary,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
 
                             // cube net for this solve
                             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                CubeNet(
-                                    scramble = solve.scramble,
-                                    puzzleType = puzzleType,
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.7f)
-                                        .aspectRatio(12f / 9f)
-                                )
+                                if (solve.scramble.startsWith("manual:")) {
+                                    CubeNetFromColors(
+                                        colors = CubieCube.colorsFromFaceString(solve.scramble.removePrefix("manual:")),
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.7f)
+                                            .aspectRatio(12f / 9f)
+                                    )
+                                } else {
+                                    CubeNet(
+                                        scramble = solve.scramble,
+                                        puzzleType = puzzleType,
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.7f)
+                                            .aspectRatio(12f / 9f)
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
