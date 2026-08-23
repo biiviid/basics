@@ -30,6 +30,7 @@ import com.basicsapp.timer.utils.FileExporter
 import com.basicsapp.timer.utils.PuzzleType
 import com.basicsapp.timer.viewmodel.TimerViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -274,6 +275,20 @@ fun BasicsMainScreen() {
                         longPressedSession = null
                     }) {
                         Text("export", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontWeight = FontWeight.Bold)
+                    }
+
+                    TextButton(onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            val sessionData = viewModel.getSessionForExport(session.id)
+                            val solves = viewModel.getSolvesForExport(session.id)
+                            if (sessionData != null) {
+                                val path = FileExporter.exportSessionCsTimer(context, sessionData, solves)
+                                Toast.makeText(context, if (path != null) "exported to $path" else "export failed", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        longPressedSession = null
+                    }) {
+                        Text("cstimer", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontWeight = FontWeight.Bold)
                     }
 
                     TextButton(onClick = {

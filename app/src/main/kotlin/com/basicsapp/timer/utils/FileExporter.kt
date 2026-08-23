@@ -7,9 +7,13 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.basicsapp.timer.data.models.Session
 import com.basicsapp.timer.data.models.Solve
+import com.basicsapp.timer.ui.components.CubieCube
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class BasicsExport(
     val version: Int = 1,
@@ -46,10 +50,66 @@ object FileExporter {
                 )
             )
         )
-
         val json = gson.toJson(exportData)
-        val fileName = "basics_${session.name.replace(" ", "_")}_${System.currentTimeMillis()}.json"
+        return writeJsonToDownloads(
+            context, json,
+            "basics_${session.name.replace(" ", "_")}_${System.currentTimeMillis()}.json"
+        )
+    }
 
+    /**
+     * csTimer-compatible JSON export, the de-facto import format used by other cubing
+     * timers. Manual cube-state solves are exported as a real equivalent WCA scramble
+     * produced by KociembaSolver, so the manual state survives the move to another timer.
+     */
+    fun exportSessionCsTimer(context: Context, session: Session, solves: List<Solve>): String? {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+        val exportData = listOf(
+            mapOf(
+                "session" to session.name,
+                "puzzle" to csTimerPuzzleCode(PuzzleType.fromString(session.puzzleType)),
+                "solves" to solves.map { solve ->
+                    mapOf(
+                        "time" to String.format(Locale.US, "%.2f", solve.timeMs / 1000.0),
+                        "penalty" to when (solve.penalty) { 2 -> "+2"; -1 -> "DNF"; else -> "0" },
+                        "scramble" to csTimerScramble(solve),
+                        "comment" to "",
+                        "date" to dateFormat.format(Date(solve.createdAt))
+                    )
+                }
+            )
+        )
+        val json = gson.toJson(exportData)
+        return writeJsonToDownloads(
+            context, json,
+            "cstimer_${session.name.replace(" ", "_")}_${System.currentTimeMillis()}.json"
+        )
+    }
+
+    private fun csTimerScramble(solve: Solve): String {
+        val raw = solve.scramble
+        if (raw.isBlank()) return ""
+        if (!raw.startsWith("manual:")) return raw
+        val colors = CubieCube.colorsFromFaceString(raw.removePrefix("manual:"))
+        val cc = CubieCube.buildCubieFromColors(colors) ?: return ""
+        return KociembaSolver.scrambleFor(cc) ?: ""
+    }
+
+    private fun csTimerPuzzleCode(puzzle: PuzzleType): String = when (puzzle) {
+        PuzzleType.TWO_BY_TWO -> "222"
+        PuzzleType.THREE_BY_THREE -> "333"
+        PuzzleType.FOUR_BY_FOUR -> "444"
+        PuzzleType.FIVE_BY_FIVE -> "555"
+        PuzzleType.SIX_BY_SIX -> "666"
+        PuzzleType.SEVEN_BY_SEVEN -> "777"
+        PuzzleType.SKEWB -> "skewb"
+        PuzzleType.PYRAMINX -> "pyraminx"
+        PuzzleType.MEGAMINX -> "megaminx"
+        PuzzleType.SQUARE_ONE -> "sq1"
+        PuzzleType.CLOCK -> "clock"
+    }
+
+    private fun writeJsonToDownloads(context: Context, json: String, fileName: String): String? {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val contentValues = ContentValues().apply {
