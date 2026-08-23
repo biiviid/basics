@@ -79,10 +79,10 @@ fun TimerScreen(viewModel: TimerViewModel) {
     var showNetPopup by remember { mutableStateOf(false) }
 
     val armProgress = remember { Animatable(0f) }
-    LaunchedEffect(timerState) {
+    LaunchedEffect(timerState, holdTimeMs) {
         if (timerState == TimerState.ARMED) {
             armProgress.snapTo(0f)
-            armProgress.animateTo(1f, animationSpec = tween(200))
+            armProgress.animateTo(1f, animationSpec = tween(holdTimeMs))
         } else {
             armProgress.snapTo(0f)
         }
@@ -118,10 +118,14 @@ fun TimerScreen(viewModel: TimerViewModel) {
                                 // hold-to-start inspection: the countdown engages once the
                                 // arm hold time is reached (while still holding); releasing
                                 // starts the solve timer
+                                // show the arm fill effect while holding; the countdown
+                                // engages once the hold time is reached, then displays normally
+                                viewModel.armTimer()
                                 val downTime = System.nanoTime()
                                 val countdownJob = scope.launch {
                                     delay(holdTimeMs.toLong())
                                     viewModel.startInspection()
+                                    viewModel.disarmTimer()
                                 }
                                 val up = waitForUpOrCancellation()
                                 countdownJob.cancel()
