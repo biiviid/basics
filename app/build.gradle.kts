@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,14 +10,14 @@ plugins {
 
 android {
     namespace = "com.basicsapp.timer"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.basicsapp.timer"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        targetSdk = 36
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -23,9 +25,10 @@ android {
     signingConfigs {
         create("release") {
             // credentials live in the gitignored keystore.properties (never committed)
-            val keystoreProperties = java.util.Properties().apply {
-                val f = rootProject.file("keystore.properties")
-                if (f.exists()) load(f.inputStream())
+            val keystoreProperties = Properties()
+            val f = rootProject.file("keystore.properties")
+            if (f.exists()) {
+                f.inputStream().use { keystoreProperties.load(it) }
             }
             storeFile = file(keystoreProperties.getProperty("storeFile", "../release-keystore.jks"))
             storePassword = keystoreProperties.getProperty("storePassword", "")
