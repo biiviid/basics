@@ -1,5 +1,6 @@
 package com.basicsapp.timer.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.basicsapp.timer.data.models.Session
@@ -11,14 +12,18 @@ import com.basicsapp.timer.utils.ScrambleGenerator
 import com.basicsapp.timer.utils.SessionStats
 import com.basicsapp.timer.utils.StatsCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
 @HiltViewModel
 class TimerViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repository: TimerRepository
 ) : ViewModel() {
+
+    private val prefs = context.getSharedPreferences("basics_settings", Context.MODE_PRIVATE)
 
     private val _sessions = MutableStateFlow<List<Session>>(emptyList())
     val sessions: StateFlow<List<Session>> = _sessions.asStateFlow()
@@ -59,6 +64,12 @@ class TimerViewModel @Inject constructor(
     private val _enabledAverages = MutableStateFlow<Set<Int>>(emptySet())
     val enabledAverages: StateFlow<Set<Int>> = _enabledAverages.asStateFlow()
 
+    private val _holdTimeMs = MutableStateFlow(200)
+    val holdTimeMs: StateFlow<Int> = _holdTimeMs.asStateFlow()
+
+    private val _inspectionHoldStart = MutableStateFlow(false)
+    val inspectionHoldStart: StateFlow<Boolean> = _inspectionHoldStart.asStateFlow()
+
     private val _inspectionTime = MutableStateFlow(15)
     val inspectionTime: StateFlow<Int> = _inspectionTime.asStateFlow()
 
@@ -93,6 +104,14 @@ class TimerViewModel @Inject constructor(
     private var tickerJob: Job? = null
 
     init {
+        // restore persisted settings
+        _inspectionEnabled.value = prefs.getBoolean("inspection_enabled", false)
+        _showAveragesOnTimer.value = prefs.getBoolean("show_averages_on_timer", false)
+        _holdTimeMs.value = prefs.getInt("hold_time_ms", 200).coerceIn(0, 1000)
+        _inspectionHoldStart.value = prefs.getBoolean("inspection_hold_start", false)
+        _enabledAverages.value = prefs.getString("enabled_averages", "")
+            ?.split(",")?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
+
         viewModelScope.launch {
             repository.getAllSessions().collect { sessionList ->
                 _sessions.value = sessionList
@@ -142,10 +161,22 @@ class TimerViewModel @Inject constructor(
 
     fun toggleInspection() {
         _inspectionEnabled.value = !_inspectionEnabled.value
+        prefs.edit().putBoolean("inspection_enabled", _inspectionEnabled.value).apply()
     }
 
     fun toggleShowAverages() {
         _showAveragesOnTimer.value = !_showAveragesOnTimer.value
+        prefs.edit().putBoolean("show_averages_on_timer", _showAveragesOnTimer.value).apply()
+    }
+
+    fun toggleInspectionHoldStart() {
+        _inspectionHoldStart.value = !_inspectionHoldStart.value
+        prefs.edit().putBoolean("inspection_hold_start", _inspectionHoldStart.value).apply()
+    }
+
+    fun setHoldTimeMs(ms: Int) {
+        _holdTimeMs.value = ms.coerceIn(0, 1000)
+        prefs.edit().putInt("hold_time_ms", _holdTimeMs.value).apply()
     }
 
     fun toggleAverage(size: Int) {
@@ -154,6 +185,7 @@ class TimerViewModel @Inject constructor(
         } else {
             _enabledAverages.value + size
         }
+        prefs.edit().putString("enabled_averages", _enabledAverages.value.sorted().joinToString(",")).apply()
     }
 
     fun startInspection() {

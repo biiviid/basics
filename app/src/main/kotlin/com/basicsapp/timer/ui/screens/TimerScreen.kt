@@ -67,6 +67,8 @@ fun TimerScreen(viewModel: TimerViewModel) {
     val scrambleIndex by viewModel.scrambleIndex.collectAsState()
     val lastSolveUsedPrevScramble by viewModel.lastSolveUsedPrevScramble.collectAsState()
     val lastSolveId by viewModel.lastSolveId.collectAsState()
+    val holdTimeMs by viewModel.holdTimeMs.collectAsState()
+    val inspectionHoldStart by viewModel.inspectionHoldStart.collectAsState()
 
     var showCustomDialog by remember { mutableStateOf(false) }
     var customInput by remember { mutableStateOf("") }
@@ -93,7 +95,7 @@ fun TimerScreen(viewModel: TimerViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(BasicsColors.Background)
-            .pointerInput(isInspecting) {
+            .pointerInput(inspectionHoldStart, holdTimeMs) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = true)
                     when {
@@ -102,14 +104,24 @@ fun TimerScreen(viewModel: TimerViewModel) {
                             viewModel.armTimer()
                             val up = waitForUpOrCancellation()
                             val heldMs = (System.nanoTime() - downTime) / 1_000_000
-                            if (up != null && heldMs >= 200) {
+                            if (up != null && heldMs >= holdTimeMs) {
                                 viewModel.startFromInspection()
                             } else {
                                 viewModel.disarmTimer()
                             }
                         }
                         timerState == TimerState.IDLE -> {
-                            if (inspectionEnabled) {
+                            if (inspectionEnabled && inspectionHoldStart) {
+                                // hold-to-start inspection: pressing starts the countdown
+                                // immediately, releasing starts the solve timer
+                                viewModel.startInspection()
+                                val up = waitForUpOrCancellation()
+                                if (up != null) {
+                                    viewModel.startFromInspection()
+                                } else {
+                                    viewModel.cancelInspection()
+                                }
+                            } else if (inspectionEnabled) {
                                 val up = waitForUpOrCancellation()
                                 if (up != null) viewModel.startInspection()
                             } else {
@@ -117,7 +129,7 @@ fun TimerScreen(viewModel: TimerViewModel) {
                                 viewModel.armTimer()
                                 val up = waitForUpOrCancellation()
                                 val heldMs = (System.nanoTime() - downTime) / 1_000_000
-                                if (up != null && heldMs >= 200) {
+                                if (up != null && heldMs >= holdTimeMs) {
                                     viewModel.startTimer()
                                 } else {
                                     viewModel.disarmTimer()
@@ -287,9 +299,9 @@ fun TimerScreen(viewModel: TimerViewModel) {
                     if (timerState != TimerState.ARMED) {
                         Spacer(modifier = Modifier.height(8.dp))
                         val stateText = when {
-                            isInspecting -> "tap to start"
+                            isInspecting -> if (inspectionHoldStart) "release to start" else "hold to start"
                             timerState == TimerState.RUNNING -> "tap to stop"
-                            timerState == TimerState.IDLE && inspectionEnabled -> "tap to inspect"
+                            timerState == TimerState.IDLE && inspectionEnabled -> if (inspectionHoldStart) "hold to inspect" else "tap to inspect"
                             timerState == TimerState.IDLE -> "hold to arm"
                             else -> ""
                         }

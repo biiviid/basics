@@ -61,6 +61,8 @@ fun BasicsMainScreen() {
     val puzzleType by viewModel.puzzleType.collectAsState()
     val inspectionEnabled by viewModel.inspectionEnabled.collectAsState()
     val enabledAverages by viewModel.enabledAverages.collectAsState()
+    val holdTimeMs by viewModel.holdTimeMs.collectAsState()
+    val inspectionHoldStart by viewModel.inspectionHoldStart.collectAsState()
     val currentSession = sessions.find { it.id == currentSessionId }
 
     val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -382,6 +384,61 @@ fun BasicsMainScreen() {
                                     .padding(2.dp)
                             )
                         }
+                    }
+
+                    HorizontalDivider(color = BasicsColors.Border)
+
+                    // hold to start inspection toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("hold to start inspection", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
+                            Text("press starts countdown, release starts solve", fontFamily = AppFont.Orbitron, fontSize = 11.sp, color = BasicsColors.Tertiary)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(width = 44.dp, height = 24.dp)
+                                .background(if (inspectionHoldStart) BasicsColors.Primary else BasicsColors.SurfaceHighest)
+                                .border(1.dp, BasicsColors.Border)
+                                .clickable { viewModel.toggleInspectionHoldStart() },
+                            contentAlignment = if (inspectionHoldStart) Alignment.CenterEnd else Alignment.CenterStart
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 18.dp, height = 18.dp)
+                                    .background(if (inspectionHoldStart) BasicsColors.Background else BasicsColors.Tertiary)
+                                    .padding(2.dp)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = BasicsColors.Border)
+
+                    // arm hold time slider (0 - 1s)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("arm hold time", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
+                            Text(String.format("%.2f", holdTimeMs / 1000.0) + "s", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Secondary)
+                        }
+                        Slider(
+                            value = holdTimeMs.toFloat(),
+                            onValueChange = { viewModel.setHoldTimeMs(it.toInt()) },
+                            valueRange = 0f..1000f,
+                            steps = 19,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                thumbColor = BasicsColors.Primary,
+                                activeTrackColor = BasicsColors.Primary,
+                                inactiveTrackColor = BasicsColors.SurfaceHighest
+                            )
+                        )
                     }
 
                     HorizontalDivider(color = BasicsColors.Border)
