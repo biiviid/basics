@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -50,6 +52,7 @@ fun BasicsMainScreen() {
     var showSessionMenu by remember { mutableStateOf(false) }
     var showNewSessionDialog by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showPrivacyPolicy by remember { mutableStateOf(false) }
     var longPressedSession by remember { mutableStateOf<com.basicsapp.timer.data.models.Session?>(null) }
     var showDeleteSessionDialog by remember { mutableStateOf(false) }
 
@@ -380,10 +383,69 @@ fun BasicsMainScreen() {
                         }
                     }
 
+                    HorizontalDivider(color = BasicsColors.Border)
+
+                    // privacy policy - opens the embedded (offline) policy dialog
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showSettings = false
+                                showPrivacyPolicy = true
+                            }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("privacy policy", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
+                        Text(">", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Tertiary)
+                    }
+
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showSettings = false }) {
+                    Text("close", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // privacy policy popup - embedded text (fully offline), matches the hosted policy
+    if (showPrivacyPolicy) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyPolicy = false },
+            containerColor = BasicsColors.SurfaceContainer,
+            titleContentColor = BasicsColors.Primary,
+            textContentColor = BasicsColors.Secondary,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp),
+            title = {
+                Text("privacy policy", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 0.1.sp)
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("basics. is a speedcubing timer application. We do not collect, store, or transmit any personal information or user data.", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Secondary)
+                    Text("Data Storage", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary)
+                    Text("All data (solve times, scrambles, session information) is stored locally on your device. No data is sent to any server or third party.", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Secondary)
+                    Text("Internet Connection", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary)
+                    Text("basics. does not require an internet connection to function. The app does not communicate with any remote servers.", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Secondary)
+                    Text("Third-Party Services", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary)
+                    Text("basics. does not integrate any third-party analytics, advertising, or tracking services.", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Secondary)
+                    Text("Children's Privacy", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary)
+                    Text("Since we do not collect any personal information, the app is safe for users of all ages.", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Secondary)
+                    Text("Changes", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary)
+                    Text("This privacy policy may be updated from time to time. Any changes will be reflected in the \"Last updated\" date above.", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Secondary)
+                    Text("Contact", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary)
+                    Text("If you have questions about this privacy policy, you can reach us at: basics.timer.app@gmail.com", fontFamily = AppFont.Orbitron, fontSize = 12.sp, color = BasicsColors.Secondary)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPrivacyPolicy = false }) {
                     Text("close", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontWeight = FontWeight.Bold)
                 }
             }
