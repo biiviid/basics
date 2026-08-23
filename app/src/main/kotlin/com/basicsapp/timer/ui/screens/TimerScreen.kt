@@ -267,14 +267,6 @@ fun TimerScreen(viewModel: TimerViewModel) {
                             color = BasicsColors.Primary,
                             modifier = Modifier.clickable { showCustomDialog = true }
                         )
-                        Text(
-                            text = "cube",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = AppFont.Orbitron,
-                            color = BasicsColors.Primary,
-                            modifier = Modifier.clickable { showCubeInput = true }
-                        )
                     }
                 }
                 }
@@ -514,12 +506,21 @@ fun TimerScreen(viewModel: TimerViewModel) {
                     )
                 },
                 confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.setCustomScramble(customInput.trim())
-                        customInput = ""
-                        showCustomDialog = false
-                    }) {
-                        Text("apply", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            customInput = ""
+                            showCustomDialog = false
+                            showCubeInput = true
+                        }) {
+                            Text("paint cube", fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary, fontSize = 12.sp)
+                        }
+                        TextButton(onClick = {
+                            viewModel.setCustomScramble(customInput.trim())
+                            customInput = ""
+                            showCustomDialog = false
+                        }) {
+                            Text("apply", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontSize = 12.sp)
+                        }
                     }
                 },
                 dismissButton = {

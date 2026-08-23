@@ -34,6 +34,7 @@ import com.basicsapp.timer.viewmodel.TimerViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -331,14 +332,16 @@ fun BasicsMainScreen() {
                     }
 
                     TextButton(onClick = {
-                        scope.launch(Dispatchers.IO) {
+                        scope.launch {
                             val sessionData = viewModel.getSessionForExport(session.id)
                             val solves = viewModel.getSolvesForExport(session.id)
                             if (sessionData != null) {
                                 val hasManual = solves.any { it.scramble.startsWith("manual:") }
                                 if (hasManual) exportProgress = 0f
-                                val path = FileExporter.exportSessionCsTimer(context, sessionData, solves) { p ->
-                                    if (hasManual) exportProgress = p
+                                val path = withContext(Dispatchers.IO) {
+                                    FileExporter.exportSessionCsTimer(context, sessionData, solves) { p ->
+                                        if (hasManual) exportProgress = p
+                                    }
                                 }
                                 exportProgress = null
                                 Toast.makeText(context, if (path != null) "exported to $path" else "export failed", Toast.LENGTH_LONG).show()
