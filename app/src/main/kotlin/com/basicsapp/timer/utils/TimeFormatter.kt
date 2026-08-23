@@ -25,4 +25,11 @@ object TimeFormatter {
             else -> formatTime(ms)
         }
     }
+
+    /** Formats a stats value: null -> "n/a", a DNF result -> "DNF", otherwise the formatted time. */
+    fun formatStatTime(ms: Long?): String = when {
+        ms == null -> "n/a"
+        ms == StatsCalculator.DNF -> "DNF"
+        else -> formatTime(ms)
+    }
 }

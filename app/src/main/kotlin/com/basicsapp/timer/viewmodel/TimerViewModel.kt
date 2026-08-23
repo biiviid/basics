@@ -117,7 +117,7 @@ class TimerViewModel @Inject constructor(
                 _solves.value = solveList
                 val sessionStats = StatsCalculator.getSessionStats(solveList)
                 _stats.value = sessionStats
-                _sessionPb.value = sessionStats.best
+                _sessionPb.value = sessionStats.best?.takeIf { it != StatsCalculator.DNF }
                 updateOverallPb()
                 val lastId = _lastSolveId.value
                 if (lastId != null && solveList.none { it.id == lastId }) {

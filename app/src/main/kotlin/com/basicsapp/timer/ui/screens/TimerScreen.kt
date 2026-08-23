@@ -383,20 +383,20 @@ fun TimerScreen(viewModel: TimerViewModel) {
                     Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
                         Text("ao5", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary, letterSpacing = 0.1.sp)
                         Text(
-                            text = if (stats.ao5 != null) TimeFormatter.formatTime(stats.ao5!!) else "n/a",
+                            text = TimeFormatter.formatStatTime(stats.ao5),
                             fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text("ao12", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary, letterSpacing = 0.1.sp)
                         Text(
-                            text = if (stats.ao12 != null) TimeFormatter.formatTime(stats.ao12!!) else "n/a",
+                            text = TimeFormatter.formatStatTime(stats.ao12),
                             fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary
                         )
                         extraAverages.forEach { (label, value) ->
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary, letterSpacing = 0.1.sp)
                             Text(
-                                text = if (value != null) TimeFormatter.formatTime(value) else "n/a",
+                                text = TimeFormatter.formatStatTime(value),
                                 fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = AppFont.Orbitron, color = BasicsColors.Secondary
                             )
                         }
