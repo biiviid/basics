@@ -13,7 +13,7 @@ data class CubieCube(
         VALID(""),
         CENTER_COLOR("center stickers must match their face color"),
         COLOR_COUNT("each color must appear exactly 9 times"),
-        IMPOSSIBLE_PIECE("a piece has impossible colors — duplicate color on one piece"),
+        IMPOSSIBLE_PIECE("a piece has impossible colors — duplicate color or impossible arrangement on one piece"),
         DUPLICATE_PIECE("a piece is used more than once"),
         MISSING_PIECE("a piece is missing"),
         PERMUTATION_PARITY("corner and edge permutation parity don't match"),
@@ -158,24 +158,25 @@ data class CubieCube(
         private fun edgeFaces(j: Int): IntArray =
             intArrayOf(eFacelet[j][0] / 9, eFacelet[j][1] / 9)
 
-        private fun cornerPieceIndex(colors: IntArray, position: Int): Int? {
-            val target = setOf(
-                colors[cFacelet[position][0]], colors[cFacelet[position][1]], colors[cFacelet[position][2]]
-            )
+        private fun cornerPieceAndOrientation(colors: IntArray, position: Int): Pair<Int, Int>? {
+            val slots = IntArray(3) { colors[cFacelet[position][it]] }
+            val target = setOf(slots[0], slots[1], slots[2])
             if (target.size != 3) return null
             for (j in 0 until 8) {
-                if (cornerFaces(j).toSet() == target) return j
+                val faces = cornerFaces(j)
+                if (faces.toSet() != target) continue
+                // forward toFaceCube writes f[cFacelet[c][(n + ori) % 3]] = cFacelet[j][n],
+                // so position slot s shows piece slot (s + 3 - ori) % 3; ori is pinned by slot 0
+                val ori = (3 - (0 until 3).first { faces[it] == slots[0] }) % 3
+                // verify the WHOLE arrangement — a reflected corner (same 3 colors, mirrored
+                // order, e.g. white-green-red vs white-red-green) is physically impossible and
+                // must be rejected, not mistaken for a valid orientation
+                for (s in 1 until 3) {
+                    if (faces[(s + 3 - ori) % 3] != slots[s]) return null
+                }
+                return j to ori
             }
             return null
-        }
-
-        private fun cornerOrientation(colors: IntArray, position: Int, j: Int): Int {
-            // forward toFaceCube writes f[cFacelet[c][(n + ori) % 3]] = cFacelet[j][n],
-            // so position slot 0 shows piece slot (3 - ori) % 3 — invert that
-            val slot0Color = colors[cFacelet[position][0]]
-            val faces = cornerFaces(j)
-            val k = (0 until 3).first { faces[it] == slot0Color }
-            return (3 - k) % 3
         }
 
         private fun edgePieceIndex(colors: IntArray, position: Int): Int? {
@@ -214,10 +215,10 @@ data class CubieCube(
             val ca = IntArray(8)
             val cornerSeen = BooleanArray(8)
             for (c in 0 until 8) {
-                val j = cornerPieceIndex(colors, c) ?: return null to ValidationResult.IMPOSSIBLE_PIECE
+                val (j, ori) = cornerPieceAndOrientation(colors, c) ?: return null to ValidationResult.IMPOSSIBLE_PIECE
                 if (cornerSeen[j]) return null to ValidationResult.DUPLICATE_PIECE
                 cornerSeen[j] = true
-                ca[c] = j or (cornerOrientation(colors, c, j) shl 3)
+                ca[c] = j or (ori shl 3)
             }
             if (cornerSeen.any { !it }) return null to ValidationResult.MISSING_PIECE
 

@@ -80,10 +80,20 @@ class CubieCubeTest {
     }
 
     @Test
+    fun `mirrored corner is rejected`() {
+        val colors = CubieCube.solvedColors().copyOf()
+        // swap red and green on the URF corner (white-green-red): same 3 colors, reflected order
+        colors[9] = 2 // R facelet → F
+        colors[20] = 1 // F facelet → R
+        assertEquals(CubieCube.ValidationResult.IMPOSSIBLE_PIECE, CubieCube.validateColors(colors))
+    }
+
+    @Test
     fun `duplicate corner piece is rejected`() {
         val colors = CubieCube.solvedColors().copyOf()
-        // corner 0 becomes UFL (piece 1, same as corner 1); rebalance by turning corner 2's L sticker into R
-        colors[9] = 4
+        // corner 0 becomes a valid UFL (piece 1, same as corner 1); rebalance by turning corner 2's L sticker into R
+        colors[9] = 2
+        colors[20] = 4
         colors[36] = 1
         assertEquals(CubieCube.ValidationResult.DUPLICATE_PIECE, CubieCube.validateColors(colors))
     }

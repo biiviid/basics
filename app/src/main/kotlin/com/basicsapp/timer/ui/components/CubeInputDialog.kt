@@ -130,8 +130,16 @@ fun CubeInputDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("cancel", fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary)
+            Row {
+                TextButton(onClick = {
+                    colors = CubieCube.solvedColors()
+                    validationError = null
+                }) {
+                    Text("clear", fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("cancel", fontFamily = AppFont.Orbitron, color = BasicsColors.Tertiary)
+                }
             }
         }
     )

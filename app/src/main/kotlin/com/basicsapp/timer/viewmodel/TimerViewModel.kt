@@ -228,6 +228,20 @@ class TimerViewModel @Inject constructor(
     private fun manualScrambleString(): String =
         "manual:" + CubieCube.faceStringFromColors(_manualColors.value)
 
+    /**
+     * Advances after a recorded solve. In scramble mode this rolls a fresh scramble;
+     * in manual mode the custom-state session is one-shot — timing a solve with a
+     * manual cube state returns the timer to generated scrambles for the next solve
+     * (the manual state stays in _manualColors, so it can be re-picked anytime).
+     */
+    private fun prepareNextSolve() {
+        if (_inputMode.value == TimerInputMode.SCRAMBLE) {
+            generateNewScramble()
+        } else {
+            setInputMode(TimerInputMode.SCRAMBLE)
+        }
+    }
+
     fun toggleAverage(size: Int) {
         _enabledAverages.value = if (size in _enabledAverages.value) {
             _enabledAverages.value - size
@@ -272,9 +286,7 @@ class TimerViewModel @Inject constructor(
             _lastSolvePenalty.value = -1
             _inspectionPenalty.value = "none"
             _inspectionTime.value = 15
-            if (_inputMode.value == TimerInputMode.SCRAMBLE) {
-                generateNewScramble()
-            }
+            prepareNextSolve()
         } else {
             startTimer()
         }
@@ -430,9 +442,7 @@ class TimerViewModel @Inject constructor(
             _lastSolvePenalty.value = penalty
             _inspectionPenalty.value = "none"
             _inspectionTime.value = 15
-            if (_inputMode.value == TimerInputMode.SCRAMBLE) {
-                generateNewScramble()
-            }
+            prepareNextSolve()
         }
     }
 
