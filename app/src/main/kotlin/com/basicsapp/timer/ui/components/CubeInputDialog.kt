@@ -34,6 +34,7 @@ fun CubeInputDialog(
 ) {
     var colors by remember { mutableStateOf(initialColors.copyOf()) }
     var selectedColor by remember { mutableStateOf(0) }
+    var validationError by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -66,8 +67,10 @@ fun CubeInputDialog(
                                     val col = (offset.x / cellW).toInt().coerceIn(0, cols - 1)
                                     val row = (offset.y / cellH).toInt().coerceIn(0, rows - 1)
                                     val facelet = netPosToFacelet(col, row)
-                                    if (facelet != null) {
+                                    // centers are locked — face identity can't be broken by mispainting
+                                    if (facelet != null && facelet % 9 != 4) {
                                         colors = colors.copyOf().also { it[facelet] = selectedColor }
+                                        validationError = null
                                     }
                                 }
                             }
@@ -94,16 +97,35 @@ fun CubeInputDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "select a color, then tap stickers to paint",
+                    text = "select a color, then tap stickers to paint · centers are locked",
                     fontSize = 11.sp,
                     fontFamily = AppFont.Orbitron,
                     color = BasicsColors.Tertiary,
                     letterSpacing = 0.1.sp
                 )
+                if (validationError != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = validationError!!,
+                        fontSize = 11.sp,
+                        fontFamily = AppFont.Orbitron,
+                        color = BasicsColors.Error,
+                        letterSpacing = 0.1.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(colors) }) {
+            TextButton(onClick = {
+                val result = CubieCube.validateColors(colors)
+                if (result == CubieCube.ValidationResult.VALID) {
+                    onConfirm(colors)
+                } else {
+                    validationError = result.message
+                }
+            }) {
                 Text("use this state", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontWeight = FontWeight.Bold)
             }
         },

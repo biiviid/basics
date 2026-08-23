@@ -7,6 +7,20 @@ data class CubieCube(
     var ca: IntArray = intArrayOf(0, 1, 2, 3, 4, 5, 6, 7),
     var ea: IntArray = intArrayOf(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
 ) {
+
+    /** Result of a manual cube-state solvability check (validateColors). */
+    enum class ValidationResult(val message: String) {
+        VALID(""),
+        CENTER_COLOR("center stickers must match their face color"),
+        COLOR_COUNT("each color must appear exactly 9 times"),
+        IMPOSSIBLE_PIECE("a piece has impossible colors — duplicate color on one piece"),
+        DUPLICATE_PIECE("a piece is used more than once"),
+        MISSING_PIECE("a piece is missing"),
+        PERMUTATION_PARITY("corner and edge permutation parity don't match"),
+        CORNER_ORIENTATION("corner orientation is impossible (sum must be a multiple of 3)"),
+        EDGE_ORIENTATION("edge orientation is impossible (sum must be even)")
+    }
+
     companion object {
         val cFacelet = arrayOf(
             intArrayOf(8, 9, 20),
@@ -131,6 +145,123 @@ data class CubieCube(
                 out[i] = if (idx >= 0) idx else 0
             }
             return out
+        }
+
+        // ---- manual state validation (inverse of toColorIndices, same CubieCube model) ----
+        // Assumes centers are correct/locked. If scanner mode is added later, detected center
+        // colors must be forced to expected values or independently verified — never let a
+        // camera misread bypass this assumption.
+
+        private fun cornerFaces(j: Int): IntArray =
+            intArrayOf(cFacelet[j][0] / 9, cFacelet[j][1] / 9, cFacelet[j][2] / 9)
+
+        private fun edgeFaces(j: Int): IntArray =
+            intArrayOf(eFacelet[j][0] / 9, eFacelet[j][1] / 9)
+
+        private fun cornerPieceIndex(colors: IntArray, position: Int): Int? {
+            val target = setOf(
+                colors[cFacelet[position][0]], colors[cFacelet[position][1]], colors[cFacelet[position][2]]
+            )
+            if (target.size != 3) return null
+            for (j in 0 until 8) {
+                if (cornerFaces(j).toSet() == target) return j
+            }
+            return null
+        }
+
+        private fun cornerOrientation(colors: IntArray, position: Int, j: Int): Int {
+            // forward toFaceCube writes f[cFacelet[c][(n + ori) % 3]] = cFacelet[j][n],
+            // so position slot 0 shows piece slot (3 - ori) % 3 — invert that
+            val slot0Color = colors[cFacelet[position][0]]
+            val faces = cornerFaces(j)
+            val k = (0 until 3).first { faces[it] == slot0Color }
+            return (3 - k) % 3
+        }
+
+        private fun edgePieceIndex(colors: IntArray, position: Int): Int? {
+            val target = setOf(colors[eFacelet[position][0]], colors[eFacelet[position][1]])
+            if (target.size != 2) return null
+            for (j in 0 until 12) {
+                if (edgeFaces(j).toSet() == target) return j
+            }
+            return null
+        }
+
+        private fun edgeOrientation(colors: IntArray, position: Int, j: Int): Int =
+            if (edgeFaces(j)[0] == colors[eFacelet[position][0]]) 0 else 1
+
+        private fun permutationParity(perm: IntArray): Int {
+            var parity = 0
+            val seen = BooleanArray(perm.size)
+            for (i in perm.indices) {
+                if (seen[i] || perm[i] == i) continue
+                var len = 0
+                var cur = i
+                while (!seen[cur]) {
+                    seen[cur] = true
+                    cur = perm[cur]
+                    len++
+                }
+                parity += len - 1
+            }
+            return parity % 2
+        }
+
+        /** Builds the CubieCube from a 54-color state, or null if the pieces aren't a valid permutation. */
+        fun buildCubieFromColors(colors: IntArray): CubieCube? = buildCubieWithError(colors).first
+
+        private fun buildCubieWithError(colors: IntArray): Pair<CubieCube?, ValidationResult?> {
+            val ca = IntArray(8)
+            val cornerSeen = BooleanArray(8)
+            for (c in 0 until 8) {
+                val j = cornerPieceIndex(colors, c) ?: return null to ValidationResult.IMPOSSIBLE_PIECE
+                if (cornerSeen[j]) return null to ValidationResult.DUPLICATE_PIECE
+                cornerSeen[j] = true
+                ca[c] = j or (cornerOrientation(colors, c, j) shl 3)
+            }
+            if (cornerSeen.any { !it }) return null to ValidationResult.MISSING_PIECE
+
+            val ea = IntArray(12)
+            val edgeSeen = BooleanArray(12)
+            for (e in 0 until 12) {
+                val j = edgePieceIndex(colors, e) ?: return null to ValidationResult.IMPOSSIBLE_PIECE
+                if (edgeSeen[j]) return null to ValidationResult.DUPLICATE_PIECE
+                edgeSeen[j] = true
+                ea[e] = (j shl 1) or edgeOrientation(colors, e, j)
+            }
+            if (edgeSeen.any { !it }) return null to ValidationResult.MISSING_PIECE
+
+            return CubieCube(ca, ea) to null
+        }
+
+        /**
+         * Validates a 54-color cube state (0-5 = U/R/F/D/L/B) for solvability, in order:
+         * centers → color counts → piece validity → permutation → parity → corner/edge orientation.
+         * Fails fast; returns the first failing check.
+         */
+        fun validateColors(colors: IntArray): ValidationResult {
+            if (colors.size != 54) return ValidationResult.IMPOSSIBLE_PIECE
+            for (f in 0 until 6) {
+                if (colors[f * 9 + 4] != f) return ValidationResult.CENTER_COLOR
+            }
+            val counts = IntArray(6)
+            for (c in colors) {
+                if (c !in 0..5) return ValidationResult.IMPOSSIBLE_PIECE
+                counts[c]++
+            }
+            for (c in 0 until 6) if (counts[c] != 9) return ValidationResult.COLOR_COUNT
+
+            val built = buildCubieWithError(colors)
+            val cube = built.first ?: return built.second ?: ValidationResult.IMPOSSIBLE_PIECE
+
+            if (permutationParity(IntArray(8) { cube.ca[it] and 7 }) !=
+                permutationParity(IntArray(12) { cube.ea[it] shr 1 })
+            ) return ValidationResult.PERMUTATION_PARITY
+
+            if (cube.ca.sumOf { it shr 3 } % 3 != 0) return ValidationResult.CORNER_ORIENTATION
+            if (cube.ea.sumOf { it and 1 } % 2 != 0) return ValidationResult.EDGE_ORIENTATION
+
+            return ValidationResult.VALID
         }
     }
 }
