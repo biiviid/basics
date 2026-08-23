@@ -46,6 +46,8 @@ import com.basicsapp.timer.ui.theme.BasicsColors
 import com.basicsapp.timer.utils.TimeFormatter
 import com.basicsapp.timer.viewmodel.TimerState
 import com.basicsapp.timer.viewmodel.TimerViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun TimerScreen(viewModel: TimerViewModel) {
@@ -69,6 +71,7 @@ fun TimerScreen(viewModel: TimerViewModel) {
     val lastSolveId by viewModel.lastSolveId.collectAsState()
     val holdTimeMs by viewModel.holdTimeMs.collectAsState()
     val inspectionHoldStart by viewModel.inspectionHoldStart.collectAsState()
+    val scope = rememberCoroutineScope()
 
     var showCustomDialog by remember { mutableStateOf(false) }
     var customInput by remember { mutableStateOf("") }
@@ -112,14 +115,22 @@ fun TimerScreen(viewModel: TimerViewModel) {
                         }
                         timerState == TimerState.IDLE -> {
                             if (inspectionEnabled && inspectionHoldStart) {
-                                // hold-to-start inspection: pressing starts the countdown
-                                // immediately, releasing starts the solve timer
-                                viewModel.startInspection()
+                                // hold-to-start inspection: the countdown engages once the
+                                // arm hold time is reached (while still holding); releasing
+                                // starts the solve timer
+                                val downTime = System.nanoTime()
+                                val countdownJob = scope.launch {
+                                    delay(holdTimeMs.toLong())
+                                    viewModel.startInspection()
+                                }
                                 val up = waitForUpOrCancellation()
-                                if (up != null) {
+                                countdownJob.cancel()
+                                val heldMs = (System.nanoTime() - downTime) / 1_000_000
+                                if (up != null && heldMs >= holdTimeMs) {
                                     viewModel.startFromInspection()
                                 } else {
                                     viewModel.cancelInspection()
+                                    viewModel.disarmTimer()
                                 }
                             } else if (inspectionEnabled) {
                                 val up = waitForUpOrCancellation()
