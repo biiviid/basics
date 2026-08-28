@@ -503,32 +503,34 @@ fun BasicsMainScreen() {
                         }
                     }
 
-                    HorizontalDivider(color = BasicsColors.Border)
+                    if (inspectionEnabled) {
+                        HorizontalDivider(color = BasicsColors.Border)
 
-                    // hold to start inspection toggle
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("hold to start inspection", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
-                            Text("press starts countdown, release starts solve", fontFamily = AppFont.Orbitron, fontSize = 11.sp, color = BasicsColors.Tertiary)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(width = 44.dp, height = 24.dp)
-                                .background(if (inspectionHoldStart) BasicsColors.Primary else BasicsColors.SurfaceHighest)
-                                .border(1.dp, BasicsColors.Border)
-                                .clickable { viewModel.toggleInspectionHoldStart() },
-                            contentAlignment = if (inspectionHoldStart) Alignment.CenterEnd else Alignment.CenterStart
+                        // hold to start inspection toggle (only relevant when wca inspection is on)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Column {
+                                Text("hold to start inspection", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
+                                Text("press starts countdown, release starts solve", fontFamily = AppFont.Orbitron, fontSize = 11.sp, color = BasicsColors.Tertiary)
+                            }
                             Box(
                                 modifier = Modifier
-                                    .size(width = 18.dp, height = 18.dp)
-                                    .background(if (inspectionHoldStart) BasicsColors.Background else BasicsColors.Tertiary)
-                                    .padding(2.dp)
-                            )
+                                    .size(width = 44.dp, height = 24.dp)
+                                    .background(if (inspectionHoldStart) BasicsColors.Primary else BasicsColors.SurfaceHighest)
+                                    .border(1.dp, BasicsColors.Border)
+                                    .clickable { viewModel.toggleInspectionHoldStart() },
+                                contentAlignment = if (inspectionHoldStart) Alignment.CenterEnd else Alignment.CenterStart
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 18.dp, height = 18.dp)
+                                        .background(if (inspectionHoldStart) BasicsColors.Background else BasicsColors.Tertiary)
+                                        .padding(2.dp)
+                                )
+                            }
                         }
                     }
 
