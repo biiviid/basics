@@ -2,6 +2,7 @@ package com.basicsapp.timer.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -42,6 +43,7 @@ data class BucketInfo(val range: String, val count: Int, val solves: List<Solve>
 fun ChartsScreen(viewModel: TimerViewModel) {
     val solves by viewModel.solves.collectAsState()
 
+    var hoveredSolve by remember { mutableStateOf<Pair<Solve, Int>?>(null) }
     var selectedSolve by remember { mutableStateOf<Pair<Solve, Int>?>(null) }
     var selectedBucket by remember { mutableStateOf<BucketInfo?>(null) }
 
@@ -93,11 +95,58 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                     .border(1.dp, BasicsColors.Border)
                     .background(BasicsColors.Surface)
             ) {
-                TimeProgressionChart(
-                    solves = solves,
-                    modifier = Modifier.fillMaxWidth().height(250.dp),
-                    onSolveTap = { solve, index -> selectedSolve = solve to index }
-                )
+                Column {
+                    TimeProgressionChart(
+                        solves = solves,
+                        modifier = Modifier.fillMaxWidth().height(250.dp),
+                        onSolveTap = { solve, index ->
+                            if (hoveredSolve?.second == index) {
+                                selectedSolve = hoveredSolve
+                                hoveredSolve = null
+                            } else {
+                                hoveredSolve = solve to index
+                            }
+                        }
+                    )
+
+                    // small tooltip for the tapped node: time + date + hint
+                    hoveredSolve?.let { (solve, index) ->
+                        val dateFormat = remember { SimpleDateFormat("MMM d, h:mma", Locale.getDefault()) }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedSolve = hoveredSolve
+                                    hoveredSolve = null
+                                }
+                                .background(BasicsColors.SurfaceHigh)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = TimeFormatter.formatTimeForDisplay(solve.timeMs, solve.penalty),
+                                    fontFamily = AppFont.Orbitron,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = if (solve.penalty != 0) BasicsColors.Error else BasicsColors.Primary
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = dateFormat.format(Date(solve.createdAt)),
+                                    fontFamily = AppFont.Orbitron,
+                                    fontSize = 10.sp,
+                                    color = BasicsColors.Tertiary
+                                )
+                            }
+                            Text(
+                                text = "tap for more info",
+                                fontFamily = AppFont.Orbitron,
+                                fontSize = 9.sp,
+                                color = BasicsColors.Tertiary
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
