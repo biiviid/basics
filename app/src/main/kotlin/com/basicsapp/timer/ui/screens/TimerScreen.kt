@@ -373,14 +373,16 @@ fun TimerScreen(viewModel: TimerViewModel) {
                                 color = BasicsColors.Secondary,
                                 modifier = Modifier.clickable { viewModel.markLastSolvePenalty(-1) }
                             )
-                            Text(
-                                text = "clear",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = AppFont.Orbitron,
-                                color = BasicsColors.Secondary,
-                                modifier = Modifier.clickable { viewModel.markLastSolvePenalty(0) }
-                            )
+                            if (lastSolvePenalty != 0) {
+                                Text(
+                                    text = "undo",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = AppFont.Orbitron,
+                                    color = BasicsColors.Secondary,
+                                    modifier = Modifier.clickable { viewModel.markLastSolvePenalty(0) }
+                                )
+                            }
                             Text(
                                 text = "delete",
                                 fontSize = 20.sp,
