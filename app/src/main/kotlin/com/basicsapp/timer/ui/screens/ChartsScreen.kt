@@ -3,10 +3,14 @@ package com.basicsapp.timer.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,11 +28,22 @@ import androidx.compose.ui.unit.sp
 import com.basicsapp.timer.data.models.Solve
 import com.basicsapp.timer.ui.theme.BasicsColors
 import com.basicsapp.timer.ui.theme.AppFont
+import com.basicsapp.timer.utils.TimeFormatter
 import com.basicsapp.timer.viewmodel.TimerViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.roundToInt
+
+/** Info about a tapped histogram bucket. */
+data class BucketInfo(val range: String, val count: Int, val solves: List<Solve>)
 
 @Composable
 fun ChartsScreen(viewModel: TimerViewModel) {
     val solves by viewModel.solves.collectAsState()
+
+    var selectedSolve by remember { mutableStateOf<Pair<Solve, Int>?>(null) }
+    var selectedBucket by remember { mutableStateOf<BucketInfo?>(null) }
 
     Column(
         modifier = Modifier
@@ -77,7 +93,11 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                     .border(1.dp, BasicsColors.Border)
                     .background(BasicsColors.Surface)
             ) {
-                TimeProgressionChart(solves = solves, modifier = Modifier.fillMaxWidth().height(250.dp))
+                TimeProgressionChart(
+                    solves = solves,
+                    modifier = Modifier.fillMaxWidth().height(250.dp),
+                    onSolveTap = { solve, index -> selectedSolve = solve to index }
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -97,22 +117,128 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                     .border(1.dp, BasicsColors.Border)
                     .background(BasicsColors.Surface)
             ) {
-                TimeDistributionChart(solves = solves, modifier = Modifier.fillMaxWidth().height(200.dp))
+                TimeDistributionChart(
+                    solves = solves,
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    onBucketTap = { selectedBucket = it }
+                )
             }
         }
     }
-}
 
+    // solve info popup for the time progression chart
+    selectedSolve?.let { (solve, index) ->
+        AlertDialog(
+            onDismissRequest = { selectedSolve = null },
+            containerColor = BasicsColors.SurfaceContainer,
+            titleContentColor = BasicsColors.Primary,
+            textContentColor = BasicsColors.Secondary,
+            shape = RoundedCornerShape(0.dp),
+            title = {
+                Text("solve #${index + 1}", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            },
+            text = {
+                val dateFormat = SimpleDateFormat("MMM d, h:mma", Locale.getDefault())
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = TimeFormatter.formatTimeForDisplay(solve.timeMs, solve.penalty),
+                        fontFamily = AppFont.Orbitron,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = if (solve.penalty != 0) BasicsColors.Error else BasicsColors.Primary
+                    )
+                    Text(
+                        text = dateFormat.format(Date(solve.createdAt)),
+                        fontFamily = AppFont.Orbitron,
+                        fontSize = 11.sp,
+                        color = BasicsColors.Tertiary
+                    )
+                    Text(
+                        text = when (solve.penalty) { 2 -> "+2 penalty"; -1 -> "did not finish"; else -> "no penalty" },
+                        fontFamily = AppFont.Orbitron,
+                        fontSize = 11.sp,
+                        color = if (solve.penalty != 0) BasicsColors.Error else BasicsColors.Tertiary
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedSolve = null }) {
+                    Text("close", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontSize = 12.sp)
+                }
+            }
+        )
+    }
+
+    // bucket info popup for the time distribution chart
+    selectedBucket?.let { info ->
+        AlertDialog(
+            onDismissRequest = { selectedBucket = null },
+            containerColor = BasicsColors.SurfaceContainer,
+            titleContentColor = BasicsColors.Primary,
+            textContentColor = BasicsColors.Secondary,
+            shape = RoundedCornerShape(0.dp),
+            title = {
+                Text("${info.range} solves", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "${info.count} in this range",
+                        fontFamily = AppFont.Orbitron,
+                        fontSize = 11.sp,
+                        color = BasicsColors.Tertiary
+                    )
+                    info.solves.take(12).forEach { solve ->
+                        Text(
+                            text = "• ${TimeFormatter.formatTimeForDisplay(solve.timeMs, solve.penalty)}",
+                            fontFamily = AppFont.Orbitron,
+                            fontSize = 12.sp,
+                            color = if (solve.penalty != 0) BasicsColors.Error else BasicsColors.Secondary
+                        )
+                    }
+                    if (info.count > 12) {
+                        Text(
+                            text = "+${info.count - 12} more",
+                            fontFamily = AppFont.Orbitron,
+                            fontSize = 11.sp,
+                            color = BasicsColors.Tertiary
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedBucket = null }) {
+                    Text("close", fontFamily = AppFont.Orbitron, color = BasicsColors.Primary, fontSize = 12.sp)
+                }
+            }
+        )
+    }
+}
 @Composable
-fun TimeProgressionChart(solves: List<Solve>, modifier: Modifier = Modifier) {
+fun TimeProgressionChart(
+    solves: List<Solve>,
+    modifier: Modifier = Modifier,
+    onSolveTap: (Solve, Int) -> Unit = { _, _ -> }
+) {
     val validSolves = solves.filter { it.penalty != -1 }
-    Canvas(modifier = modifier.background(BasicsColors.Surface)) {
+    Canvas(
+        modifier = modifier
+            .background(BasicsColors.Surface)
+            .pointerInput(solves.size) {
+                detectTapGestures { offset ->
+                    if (solves.size < 2) return@detectTapGestures
+                    val leftPadding = 60f
+                    val rightPadding = 20f
+                    val chartWidth = size.width - leftPadding - rightPadding
+                    if (chartWidth <= 0f || offset.x < leftPadding || offset.x > size.width - rightPadding) return@detectTapGestures
+                    val index = (((offset.x - leftPadding) / chartWidth) * (solves.size - 1)).roundToInt().coerceIn(0, solves.size - 1)
+                    onSolveTap(solves[index], index)
+                }
+            }
+    ) {
         if (validSolves.size < 2) return@Canvas
 
-        val times = validSolves.map { solve ->
-            val t = if (solve.penalty == 2) solve.timeMs + 2000 else solve.timeMs
-            t / 1000f
-        }
+        val times = validSolves.map { solve -> (if (solve.penalty == 2) solve.timeMs + 2000 else solve.timeMs) / 1000f }
 
         val minTime = times.min()
         val maxTime = times.max()
@@ -140,9 +266,7 @@ fun TimeProgressionChart(solves: List<Solve>, modifier: Modifier = Modifier) {
         for (i in 0..ySteps) {
             val value = paddedMax - (paddedRange * i / ySteps)
             val y = topPadding + (chartHeight * i / ySteps)
-
             drawLine(Color(0xFF353535), Offset(leftPadding, y), Offset(size.width - rightPadding, y), strokeWidth = 1f)
-
             val label = String.format("%.1fs", value)
             drawContext.canvas.nativeCanvas.drawText(label, 4f, y + 8f, paint)
         }
@@ -151,27 +275,32 @@ fun TimeProgressionChart(solves: List<Solve>, modifier: Modifier = Modifier) {
         drawLine(Color(0xFF444748), Offset(leftPadding, topPadding), Offset(leftPadding, size.height - bottomPadding), strokeWidth = 2f)
         drawLine(Color(0xFF444748), Offset(leftPadding, size.height - bottomPadding), Offset(size.width - rightPadding, size.height - bottomPadding), strokeWidth = 2f)
 
-        // X-axis labels
-        val xLabelCount = if (times.size <= 10) times.size else 10
+        // X-axis labels: solve numbers
+        val xLabelCount = if (solves.size <= 10) solves.size else 10
         for (i in 0 until xLabelCount) {
-            val index = (i * (times.size - 1) / (xLabelCount - 1).coerceAtLeast(1))
-            val x = leftPadding + (index.toFloat() / (times.size - 1)) * chartWidth
+            val index = (i * (solves.size - 1) / (xLabelCount - 1).coerceAtLeast(1))
+            val x = leftPadding + (index.toFloat() / (solves.size - 1)) * chartWidth
             drawContext.canvas.nativeCanvas.drawText("${index + 1}", x - 8f, size.height - 6f, paint)
         }
 
-        // Line path
+        // Line path (breaks across DNFs)
         val path = Path()
-        times.forEachIndexed { index, time ->
-            val x = leftPadding + (index.toFloat() / (times.size - 1)) * chartWidth
-            val y = topPadding + chartHeight - ((time - paddedMin) / paddedRange) * chartHeight
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        var started = false
+        solves.forEachIndexed { index, solve ->
+            if (solve.penalty == -1) return@forEachIndexed
+            val x = leftPadding + (index.toFloat() / (solves.size - 1)) * chartWidth
+            val t = (if (solve.penalty == 2) solve.timeMs + 2000 else solve.timeMs) / 1000f
+            val y = topPadding + chartHeight - ((t - paddedMin) / paddedRange) * chartHeight
+            if (!started) { path.moveTo(x, y); started = true } else path.lineTo(x, y)
         }
         drawPath(path, color = Color.White, style = Stroke(width = 2.5f))
 
         // Dots
-        times.forEachIndexed { index, time ->
-            val x = leftPadding + (index.toFloat() / (times.size - 1)) * chartWidth
-            val y = topPadding + chartHeight - ((time - paddedMin) / paddedRange) * chartHeight
+        solves.forEachIndexed { index, solve ->
+            if (solve.penalty == -1) return@forEachIndexed
+            val x = leftPadding + (index.toFloat() / (solves.size - 1)) * chartWidth
+            val t = (if (solve.penalty == 2) solve.timeMs + 2000 else solve.timeMs) / 1000f
+            val y = topPadding + chartHeight - ((t - paddedMin) / paddedRange) * chartHeight
             drawCircle(color = Color.White, radius = 4f, center = Offset(x, y))
         }
 
@@ -186,18 +315,41 @@ fun TimeProgressionChart(solves: List<Solve>, modifier: Modifier = Modifier) {
         }
     }
 }
-
 @Composable
-fun TimeDistributionChart(solves: List<Solve>, modifier: Modifier = Modifier) {
+fun TimeDistributionChart(
+    solves: List<Solve>,
+    modifier: Modifier = Modifier,
+    onBucketTap: (BucketInfo) -> Unit = {}
+) {
     val validSolves = solves.filter { it.penalty != -1 }
-    Canvas(modifier = modifier.background(BasicsColors.Surface)) {
+    Canvas(
+        modifier = modifier
+            .background(BasicsColors.Surface)
+            .pointerInput(solves) {
+                detectTapGestures { offset ->
+                    val valid = solves.filter { it.penalty != -1 }
+                    if (valid.isEmpty()) return@detectTapGestures
+                    val times = valid.map { (if (it.penalty == 2) it.timeMs + 2000 else it.timeMs) / 1000f }
+                    val maxTime = times.max()
+                    val bucketSize = if (maxTime <= 10f) 2f else if (maxTime <= 30f) 5f else if (maxTime <= 60f) 10f else 15f
+                    val bucketCount = ((maxTime / bucketSize).toInt() + 1).coerceAtMost(20)
+                    val leftPadding = 60f
+                    val rightPadding = 20f
+                    val chartWidth = size.width - leftPadding - rightPadding
+                    if (chartWidth <= 0f || offset.x < leftPadding || offset.x >= size.width - rightPadding) return@detectTapGestures
+                    val bucketIndex = ((offset.x - leftPadding) / (chartWidth / bucketCount)).toInt().coerceIn(0, bucketCount - 1)
+                    val bucketSolves = valid.filter {
+                        val t = (if (it.penalty == 2) it.timeMs + 2000 else it.timeMs) / 1000f
+                        (t / bucketSize).toInt().coerceIn(0, bucketCount - 1) == bucketIndex
+                    }
+                    val range = "${(bucketIndex * bucketSize).toInt()}-${((bucketIndex + 1) * bucketSize).toInt()}s"
+                    onBucketTap(BucketInfo(range, bucketSolves.size, bucketSolves))
+                }
+            }
+    ) {
         if (validSolves.isEmpty()) return@Canvas
 
-        val times = validSolves.map { solve ->
-            val t = if (solve.penalty == 2) solve.timeMs + 2000 else solve.timeMs
-            t / 1000f
-        }
-
+        val times = validSolves.map { solve -> (if (solve.penalty == 2) solve.timeMs + 2000 else solve.timeMs) / 1000f }
         val maxTime = times.max()
         val bucketSize = if (maxTime <= 10f) 2f else if (maxTime <= 30f) 5f else if (maxTime <= 60f) 10f else 15f
         val bucketCount = ((maxTime / bucketSize).toInt() + 1).coerceAtMost(20)
