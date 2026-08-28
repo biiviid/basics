@@ -71,6 +71,9 @@ class TimerViewModel @Inject constructor(
     private val _inspectionHoldStart = MutableStateFlow(false)
     val inspectionHoldStart: StateFlow<Boolean> = _inspectionHoldStart.asStateFlow()
 
+    private val _hideMillisWhileSolving = MutableStateFlow(false)
+    val hideMillisWhileSolving: StateFlow<Boolean> = _hideMillisWhileSolving.asStateFlow()
+
     // input mode: generated scrambles, or a manually-entered cube state
     private val _inputMode = MutableStateFlow(TimerInputMode.SCRAMBLE)
     val inputMode: StateFlow<TimerInputMode> = _inputMode.asStateFlow()
@@ -117,6 +120,7 @@ class TimerViewModel @Inject constructor(
         _showAveragesOnTimer.value = prefs.getBoolean("show_averages_on_timer", false)
         _holdTimeMs.value = prefs.getInt("hold_time_ms", 200).coerceIn(0, 1000)
         _inspectionHoldStart.value = prefs.getBoolean("inspection_hold_start", false)
+        _hideMillisWhileSolving.value = prefs.getBoolean("hide_millis_while_solving", false)
         _enabledAverages.value = prefs.getString("enabled_averages", "")
             ?.split(",")?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
         _inputMode.value = runCatching {
@@ -186,6 +190,11 @@ class TimerViewModel @Inject constructor(
     fun toggleInspectionHoldStart() {
         _inspectionHoldStart.value = !_inspectionHoldStart.value
         prefs.edit().putBoolean("inspection_hold_start", _inspectionHoldStart.value).apply()
+    }
+
+    fun toggleHideMillisWhileSolving() {
+        _hideMillisWhileSolving.value = !_hideMillisWhileSolving.value
+        prefs.edit().putBoolean("hide_millis_while_solving", _hideMillisWhileSolving.value).apply()
     }
 
     fun setHoldTimeMs(ms: Int) {

@@ -78,6 +78,7 @@ fun BasicsMainScreen() {
     val timerState by viewModel.timerState.collectAsState()
     val elapsed by viewModel.elapsed.collectAsState()
     val inspectionEnabled by viewModel.inspectionEnabled.collectAsState()
+    val hideMillisWhileSolving by viewModel.hideMillisWhileSolving.collectAsState()
     val enabledAverages by viewModel.enabledAverages.collectAsState()
     val holdTimeMs by viewModel.holdTimeMs.collectAsState()
     val inspectionHoldStart by viewModel.inspectionHoldStart.collectAsState()
@@ -277,7 +278,10 @@ fun BasicsMainScreen() {
                 Box(
                     modifier = Modifier.offset { IntOffset(pos.x.roundToInt(), pos.y.roundToInt()) }
                 ) {
-                    AdaptiveTimerText(text = TimeFormatter.formatTime(elapsed), color = BasicsColors.Primary)
+                    AdaptiveTimerText(
+                        text = if (hideMillisWhileSolving) TimeFormatter.formatTimeNoMillis(elapsed) else TimeFormatter.formatTime(elapsed),
+                        color = BasicsColors.Primary
+                    )
                 }
             }
         }
@@ -523,6 +527,35 @@ fun BasicsMainScreen() {
                                 modifier = Modifier
                                     .size(width = 18.dp, height = 18.dp)
                                     .background(if (inspectionHoldStart) BasicsColors.Background else BasicsColors.Tertiary)
+                                    .padding(2.dp)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = BasicsColors.Border)
+
+                    // hide millis while solving toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("hide millis while solving", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
+                            Text("cleaner timer, fewer distractions", fontFamily = AppFont.Orbitron, fontSize = 11.sp, color = BasicsColors.Tertiary)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(width = 44.dp, height = 24.dp)
+                                .background(if (hideMillisWhileSolving) BasicsColors.Primary else BasicsColors.SurfaceHighest)
+                                .border(1.dp, BasicsColors.Border)
+                                .clickable { viewModel.toggleHideMillisWhileSolving() },
+                            contentAlignment = if (hideMillisWhileSolving) Alignment.CenterEnd else Alignment.CenterStart
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 18.dp, height = 18.dp)
+                                    .background(if (hideMillisWhileSolving) BasicsColors.Background else BasicsColors.Tertiary)
                                     .padding(2.dp)
                             )
                         }

@@ -63,6 +63,7 @@ fun TimerScreen(
     val timerState by viewModel.timerState.collectAsState()
     val scramble by viewModel.scramble.collectAsState()
     val puzzleType by viewModel.puzzleType.collectAsState()
+    val hideMillisWhileSolving by viewModel.hideMillisWhileSolving.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val sessionPb by viewModel.sessionPb.collectAsState()
     val overallPb by viewModel.overallPb.collectAsState()
@@ -334,7 +335,10 @@ fun TimerScreen(
                                 onTimerPosition(coords.localToRoot(Offset.Zero))
                             }
                         ) {
-                            AdaptiveTimerText(text = TimeFormatter.formatTime(elapsed), color = BasicsColors.Primary)
+                            AdaptiveTimerText(
+                                text = if (hideMillisWhileSolving) TimeFormatter.formatTimeNoMillis(elapsed) else TimeFormatter.formatTime(elapsed),
+                                color = BasicsColors.Primary
+                            )
                         }
                     }
 
