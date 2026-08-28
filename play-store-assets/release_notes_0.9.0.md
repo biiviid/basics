@@ -1,11 +1,13 @@
-# basics. — Release notes for the 0.9.0 closed-test update (versionCode 9)
+# basics. — Release notes for the 0.9.0 closed-test update (versionCode 10)
 
 Upload to: **Play Console → Testing → Closed testing → Alpha → Create new release**
 (with `app/build/outputs/bundle/release/app-release.aab`)
 
-> The Alpha track currently has 1.0.2 (versionCode 3). versionCode 9 > 3, so
-> testers keep the same opt-in link and see an "Update" button. The 14-day
-> closed-test countdown (started Aug 23) is NOT reset by updating the release.
+> versionCode 9 was already consumed by an earlier upload, so this release is
+> versionCode 10 (versionName stays 0.9.0). versionCode 10 > the 1.0.2 /
+> versionCode 3 currently on Alpha, so testers keep the same opt-in link and
+> see an "Update" button. The 14-day closed-test countdown (started Aug 23) is
+> NOT reset by updating the release.
 
 ---
 
