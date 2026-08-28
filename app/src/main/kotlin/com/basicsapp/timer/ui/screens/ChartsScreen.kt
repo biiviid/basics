@@ -44,6 +44,7 @@ fun ChartsScreen(viewModel: TimerViewModel) {
     val solves by viewModel.solves.collectAsState()
 
     var hoveredSolve by remember { mutableStateOf<Pair<Solve, Int>?>(null) }
+    var hoveredBucket by remember { mutableStateOf<BucketInfo?>(null) }
     var selectedSolve by remember { mutableStateOf<Pair<Solve, Int>?>(null) }
     var selectedBucket by remember { mutableStateOf<BucketInfo?>(null) }
 
@@ -115,6 +116,7 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(48.dp)
                             .then(
                                 if (hovered != null) {
                                     Modifier.clickable {
@@ -126,7 +128,8 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                                 }
                             )
                             .background(BasicsColors.SurfaceHigh)
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.Center
                     ) {
                         if (hovered != null) {
                             val (solve, _) = hovered
@@ -181,11 +184,70 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                     .border(1.dp, BasicsColors.Border)
                     .background(BasicsColors.Surface)
             ) {
-                TimeDistributionChart(
-                    solves = solves,
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                    onBucketTap = { selectedBucket = it }
-                )
+                Column {
+                    TimeDistributionChart(
+                        solves = solves,
+                        modifier = Modifier.fillMaxWidth().height(200.dp),
+                        onBucketTap = { hoveredBucket = it }
+                    )
+
+                    // always-visible info strip: bucket details (with times) when one is tapped
+                    val hovered = hoveredBucket
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(72.dp)
+                            .then(
+                                if (hovered != null) {
+                                    Modifier.clickable {
+                                        selectedBucket = hoveredBucket
+                                        hoveredBucket = null
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .background(BasicsColors.SurfaceHigh)
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        if (hovered != null) {
+                            Text(
+                                text = "${hovered.count} solves · ${hovered.range}",
+                                fontFamily = AppFont.Orbitron,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = BasicsColors.Primary
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                hovered.solves.forEach { solve ->
+                                    Text(
+                                        text = "• ${TimeFormatter.formatTimeForDisplay(solve.timeMs, solve.penalty)}",
+                                        fontFamily = AppFont.Orbitron,
+                                        fontSize = 11.sp,
+                                        color = if (solve.penalty != 0) BasicsColors.Error else BasicsColors.Tertiary
+                                    )
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "tap a bar to see info",
+                                    fontFamily = AppFont.Orbitron,
+                                    fontSize = 9.sp,
+                                    color = BasicsColors.Tertiary
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
