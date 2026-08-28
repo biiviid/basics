@@ -29,14 +29,18 @@ FEATURES
 
 • WCA scrambles for 2x2–7x7, Skewb, Pyraminx, Megaminx, Square-1 and Clock,
   with standard WCA notation
+• Manual cube input: paint your cube's actual state to set a custom scramble —
+  every state is validated for solvability before it can be saved
+• Built-in Kociemba two-phase solver converts any valid cube state into a real
+  WCA scramble, and powers csTimer-compatible JSON export
 • Precise timer with optional 15-second inspection and WCA penalties (+2 / DNF)
 • Session stats: best, worst, mean, median, standard deviation, and rolling
   averages ao5, ao12, ao50, ao100, ao200 and ao500 — with correct DNF handling,
   the same way competitive speedcubers expect
 • Multiple named sessions per puzzle type
 • Full solve history with penalties and delete
-• Progress charts for every session
-• Import and export your data as JSON
+• Interactive progress and distribution charts for every session
+• Import and export your data as JSON (csTimer-compatible)
 • Dark, minimal monochrome design with the Orbitron font
 
 PRIVACY
