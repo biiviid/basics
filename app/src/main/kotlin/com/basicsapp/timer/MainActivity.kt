@@ -626,7 +626,7 @@ fun BasicsMainScreen() {
     // new session dialog
     if (showNewSessionDialog) {
         var sessionName by remember { mutableStateOf("") }
-        var selectedPuzzle by remember { mutableStateOf(puzzleType) }
+        var selectedPuzzle by remember { mutableStateOf(PuzzleType.THREE_BY_THREE) }
         AlertDialog(
             onDismissRequest = { showNewSessionDialog = false },
             containerColor = BasicsColors.SurfaceContainer,
@@ -655,23 +655,46 @@ fun BasicsMainScreen() {
 
                     Text("puzzle type", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = BasicsColors.Tertiary, letterSpacing = 0.1.sp)
 
-                    val rows = PuzzleType.entries.chunked(3)
-                    rows.forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .border(1.dp, BasicsColors.Primary)
+                                .background(BasicsColors.SurfaceHighest)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = PuzzleType.THREE_BY_THREE.displayName.lowercase(),
+                                fontFamily = AppFont.Orbitron,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = BasicsColors.Primary
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "coming soon",
+                        fontFamily = AppFont.Orbitron,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = BasicsColors.Tertiary.copy(alpha = 0.6f),
+                        letterSpacing = 0.1.sp
+                    )
+
+                    PuzzleType.entries.filter { it != PuzzleType.THREE_BY_THREE }.chunked(3).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             row.forEach { puzzle ->
                                 Box(
                                     modifier = Modifier
-                                        .border(1.dp, if (selectedPuzzle == puzzle) BasicsColors.Primary else BasicsColors.Border)
-                                        .background(if (selectedPuzzle == puzzle) BasicsColors.SurfaceHighest else BasicsColors.Surface)
-                                        .clickable { selectedPuzzle = puzzle }
+                                        .border(1.dp, BasicsColors.Border)
+                                        .background(BasicsColors.Surface)
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
                                         text = puzzle.displayName.lowercase(),
                                         fontFamily = AppFont.Orbitron,
                                         fontSize = 11.sp,
-                                        fontWeight = if (selectedPuzzle == puzzle) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (selectedPuzzle == puzzle) BasicsColors.Primary else BasicsColors.Tertiary
+                                        color = BasicsColors.Tertiary.copy(alpha = 0.45f)
                                     )
                                 }
                             }
