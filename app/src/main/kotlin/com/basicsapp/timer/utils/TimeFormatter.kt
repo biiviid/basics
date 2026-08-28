@@ -9,8 +9,13 @@ object TimeFormatter {
         return "$minutes:${String.format("%02d", seconds)}.${String.format("%03d", millis)}"
     }
 
-    /** Formats a time without milliseconds (e.g. "1:23" instead of "1:23.456"). */
-    fun formatTimeNoMillis(ms: Long): String = formatTime(ms).substringBefore(".")
+    /** Formats a time without milliseconds: seconds only ("45") until a minute passes, then "1:23". */
+    fun formatTimeNoMillis(ms: Long): String {
+        val totalSec = ms / 1000
+        val minutes = totalSec / 60
+        val seconds = totalSec % 60
+        return if (minutes > 0) "$minutes:${String.format("%02d", seconds)}" else "$seconds"
+    }
 
     fun formatTimeWithPenalty(ms: Long, penalty: Int): String {
         val adjustedMs = when (penalty) {

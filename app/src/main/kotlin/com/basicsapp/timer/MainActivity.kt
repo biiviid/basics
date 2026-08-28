@@ -542,7 +542,7 @@ fun BasicsMainScreen() {
                     ) {
                         Column {
                             Text("hide millis while solving", fontFamily = AppFont.Orbitron, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BasicsColors.Primary, letterSpacing = 0.1.sp)
-                            Text("cleaner timer, fewer distractions", fontFamily = AppFont.Orbitron, fontSize = 11.sp, color = BasicsColors.Tertiary)
+                            Text("fewer distractions", fontFamily = AppFont.Orbitron, fontSize = 11.sp, color = BasicsColors.Tertiary)
                         }
                         Box(
                             modifier = Modifier
