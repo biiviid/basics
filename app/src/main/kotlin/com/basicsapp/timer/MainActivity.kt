@@ -35,6 +35,16 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import com.basicsapp.timer.ui.components.AdaptiveTimerText
+import com.basicsapp.timer.utils.TimeFormatter
+import com.basicsapp.timer.viewmodel.TimerState
+import kotlin.math.roundToInt
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -59,11 +69,14 @@ fun BasicsMainScreen() {
     var showPrivacyPolicy by remember { mutableStateOf(false) }
     var longPressedSession by remember { mutableStateOf<com.basicsapp.timer.data.models.Session?>(null) }
     var exportProgress by remember { mutableStateOf<Float?>(null) }
+    var timerPosition by remember { mutableStateOf<Offset?>(null) }
     var showDeleteSessionDialog by remember { mutableStateOf(false) }
 
     val sessions by viewModel.sessions.collectAsState()
     val currentSessionId by viewModel.currentSessionId.collectAsState()
     val puzzleType by viewModel.puzzleType.collectAsState()
+    val timerState by viewModel.timerState.collectAsState()
+    val elapsed by viewModel.elapsed.collectAsState()
     val inspectionEnabled by viewModel.inspectionEnabled.collectAsState()
     val enabledAverages by viewModel.enabledAverages.collectAsState()
     val holdTimeMs by viewModel.holdTimeMs.collectAsState()
@@ -239,10 +252,34 @@ fun BasicsMainScreen() {
         }
 
         when (selectedTab) {
-            0 -> TimerScreen(viewModel = viewModel)
+            0 -> TimerScreen(viewModel = viewModel, onTimerPosition = { timerPosition = it })
             1 -> HistoryScreen(viewModel = viewModel)
             2 -> StatsScreen(viewModel = viewModel)
             3 -> ChartsScreen(viewModel = viewModel)
+        }
+    }
+
+    // running overlay: only the timer is visible; a tap anywhere stops the timer
+    if (timerState == TimerState.RUNNING) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BasicsColors.Background)
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false).also { it.consume() }
+                        waitForUpOrCancellation()
+                        viewModel.stopTimer()
+                    }
+                }
+        ) {
+            timerPosition?.let { pos ->
+                Box(
+                    modifier = Modifier.offset { IntOffset(pos.x.roundToInt(), pos.y.roundToInt()) }
+                ) {
+                    AdaptiveTimerText(text = TimeFormatter.formatTime(elapsed), color = BasicsColors.Primary)
+                }
+            }
         }
     }
 

@@ -426,6 +426,7 @@ class TimerViewModel @Inject constructor(
 
     fun stopTimer() {
         tickerJob?.cancel()
+        val wasRunning = _timerState.value == TimerState.RUNNING
         val endTime = System.nanoTime()
         var elapsedMs = (endTime - startTime) / 1_000_000
         _timerState.value = TimerState.IDLE
@@ -435,7 +436,8 @@ class TimerViewModel @Inject constructor(
 
         _elapsed.value = elapsedMs
 
-        if (elapsedMs in 1..3599999) {
+        // guard: overlapping tap handlers may both call stopTimer; only the first records
+        if (wasRunning && elapsedMs in 1..3599999) {
             val currentScramble = _scramble.value
             recordSolve(elapsedMs, penalty, currentScramble)
             _lastSolveTime.value = elapsedMs

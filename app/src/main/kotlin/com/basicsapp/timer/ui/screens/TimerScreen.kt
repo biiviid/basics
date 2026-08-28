@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -53,7 +54,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun TimerScreen(viewModel: TimerViewModel) {
+fun TimerScreen(
+    viewModel: TimerViewModel,
+    onTimerPosition: (Offset) -> Unit = {}
+) {
     val context = LocalContext.current
     val elapsed by viewModel.elapsed.collectAsState()
     val timerState by viewModel.timerState.collectAsState()
@@ -325,11 +329,23 @@ fun TimerScreen(viewModel: TimerViewModel) {
                     }
 
                     if (timerState == TimerState.RUNNING) {
-                        AdaptiveTimerText(text = TimeFormatter.formatTime(elapsed), color = BasicsColors.Primary)
+                        Box(
+                            modifier = Modifier.onGloballyPositioned { coords ->
+                                onTimerPosition(coords.localToRoot(Offset.Zero))
+                            }
+                        ) {
+                            AdaptiveTimerText(text = TimeFormatter.formatTime(elapsed), color = BasicsColors.Primary)
+                        }
                     }
 
                     if (!isInspecting && timerState == TimerState.IDLE && lastSolveTime == null) {
-                        AdaptiveTimerText(text = "0:00.000", color = BasicsColors.Primary)
+                        Box(
+                            modifier = Modifier.onGloballyPositioned { coords ->
+                                onTimerPosition(coords.localToRoot(Offset.Zero))
+                            }
+                        ) {
+                            AdaptiveTimerText(text = "0:00.000", color = BasicsColors.Primary)
+                        }
                     }
 
                     if (timerState == TimerState.ARMED && !isInspecting) {
