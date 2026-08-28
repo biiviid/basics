@@ -44,7 +44,6 @@ fun ChartsScreen(viewModel: TimerViewModel) {
     val solves by viewModel.solves.collectAsState()
 
     var hoveredSolve by remember { mutableStateOf<Pair<Solve, Int>?>(null) }
-    var hoveredBucket by remember { mutableStateOf<BucketInfo?>(null) }
     var selectedSolve by remember { mutableStateOf<Pair<Solve, Int>?>(null) }
     var selectedBucket by remember { mutableStateOf<BucketInfo?>(null) }
 
@@ -188,64 +187,24 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                     TimeDistributionChart(
                         solves = solves,
                         modifier = Modifier.fillMaxWidth().height(200.dp),
-                        onBucketTap = { hoveredBucket = it }
+                        onBucketTap = { selectedBucket = it }
                     )
 
-                    // always-visible info strip: bucket details (with times) when one is tapped
-                    val hovered = hoveredBucket
+                    // always-visible hint strip
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(72.dp)
-                            .then(
-                                if (hovered != null) {
-                                    Modifier.clickable {
-                                        selectedBucket = hoveredBucket
-                                        hoveredBucket = null
-                                    }
-                                } else {
-                                    Modifier
-                                }
-                            )
+                            .height(48.dp)
                             .background(BasicsColors.SurfaceHigh)
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        if (hovered != null) {
-                            Text(
-                                text = "${hovered.count} solves · ${hovered.range}",
-                                fontFamily = AppFont.Orbitron,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                color = BasicsColors.Primary
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                hovered.solves.forEach { solve ->
-                                    Text(
-                                        text = "• ${TimeFormatter.formatTimeForDisplay(solve.timeMs, solve.penalty)}",
-                                        fontFamily = AppFont.Orbitron,
-                                        fontSize = 11.sp,
-                                        color = if (solve.penalty != 0) BasicsColors.Error else BasicsColors.Tertiary
-                                    )
-                                }
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "tap a bar to see info",
-                                    fontFamily = AppFont.Orbitron,
-                                    fontSize = 9.sp,
-                                    color = BasicsColors.Tertiary
-                                )
-                            }
-                        }
+                        Text(
+                            text = "tap a bar for more info",
+                            fontFamily = AppFont.Orbitron,
+                            fontSize = 9.sp,
+                            color = BasicsColors.Tertiary
+                        )
                     }
                 }
             }
