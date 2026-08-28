@@ -109,19 +109,27 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                         }
                     )
 
-                    // small tooltip for the tapped node: time + date + hint
-                    hoveredSolve?.let { (solve, index) ->
-                        val dateFormat = remember { SimpleDateFormat("MMM d, h:mma", Locale.getDefault()) }
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    selectedSolve = hoveredSolve
-                                    hoveredSolve = null
+                    // always-visible info strip: node details when one is tapped, else a hint
+                    val dateFormat = remember { SimpleDateFormat("MMM d, h:mma", Locale.getDefault()) }
+                    val hovered = hoveredSolve
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (hovered != null) {
+                                    Modifier.clickable {
+                                        selectedSolve = hoveredSolve
+                                        hoveredSolve = null
+                                    }
+                                } else {
+                                    Modifier
                                 }
-                                .background(BasicsColors.SurfaceHigh)
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
+                            )
+                            .background(BasicsColors.SurfaceHigh)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        if (hovered != null) {
+                            val (solve, _) = hovered
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = TimeFormatter.formatTimeForDisplay(solve.timeMs, solve.penalty),
@@ -140,6 +148,13 @@ fun ChartsScreen(viewModel: TimerViewModel) {
                             }
                             Text(
                                 text = "tap for more info",
+                                fontFamily = AppFont.Orbitron,
+                                fontSize = 9.sp,
+                                color = BasicsColors.Tertiary
+                            )
+                        } else {
+                            Text(
+                                text = "tap a node to see info",
                                 fontFamily = AppFont.Orbitron,
                                 fontSize = 9.sp,
                                 color = BasicsColors.Tertiary
