@@ -34,16 +34,17 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.basicsapp.timer.ui.components.AdaptiveTimerText
 import com.basicsapp.timer.ui.components.CubeInputDialog
 import com.basicsapp.timer.ui.components.CubeNet
 import com.basicsapp.timer.ui.components.CubeNetFromColors
+import com.basicsapp.timer.ui.components.ScaledTimerText
+import com.basicsapp.timer.ui.components.TimerTextTrackingEm
 import com.basicsapp.timer.ui.theme.AppFont
 import com.basicsapp.timer.ui.theme.BasicsColors
 import com.basicsapp.timer.utils.TimeFormatter
@@ -358,7 +359,7 @@ fun TimerScreen(
                             progress = armProgress.value,
                             fontSize = 72.sp,
                             normalColor = BasicsColors.Primary,
-                            letterSpacing = (-2).sp
+                            letterSpacing = TimerTextTrackingEm
                         )
                     }
 
@@ -648,32 +649,24 @@ fun ArmedText(
     fontSize: androidx.compose.ui.unit.TextUnit,
     normalColor: Color,
     armedColor: Color = BasicsColors.Armed,
-    letterSpacing: androidx.compose.ui.unit.TextUnit = 0.sp
+    letterSpacing: androidx.compose.ui.unit.TextUnit = 0.em
 ) {
-    val baseDensity = LocalDensity.current
-    val cappedDensity = Density(baseDensity.density, baseDensity.fontScale.coerceAtMost(1.2f))
-    CompositionLocalProvider(LocalDensity provides cappedDensity) {
-        Text(
-            text = text,
-            fontSize = fontSize,
-            fontWeight = FontWeight.Bold,
-            fontFamily = AppFont.Orbitron,
-            color = normalColor,
-            letterSpacing = letterSpacing,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                .drawWithContent {
-                    drawContent()
-                    val fillHeight = size.height * progress
-                    drawRect(
-                        color = armedColor,
-                        topLeft = Offset(0f, size.height - fillHeight),
-                        size = androidx.compose.ui.geometry.Size(size.width, fillHeight),
-                        blendMode = BlendMode.SrcIn
-                    )
-                }
-        )
-    }
+    ScaledTimerText(
+        text = text,
+        color = normalColor,
+        fontSize = fontSize,
+        letterSpacing = letterSpacing,
+        textModifier = Modifier
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawWithContent {
+                drawContent()
+                val fillHeight = size.height * progress
+                drawRect(
+                    color = armedColor,
+                    topLeft = Offset(0f, size.height - fillHeight),
+                    size = androidx.compose.ui.geometry.Size(size.width, fillHeight),
+                    blendMode = BlendMode.SrcIn
+                )
+            }
+    )
 }
